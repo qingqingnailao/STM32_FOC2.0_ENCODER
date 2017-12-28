@@ -1,0 +1,186 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V6.40.1.53790/W32 for ARM     24/Feb/2014  19:26:37 #
+# Copyright 1999-2012 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  D:\stm32\BLDC PMSM2\src\MC_Globals.c                     #
+#    Command line =  "D:\stm32\BLDC PMSM2\src\MC_Globals.c" -D                #
+#                    VECT_TAB_FLASH -lCN "D:\stm32\BLDC                       #
+#                    PMSM2\EWARM\Debug\List\" --diag_error Pe068,Pe069 -o     #
+#                    "D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\" --debug           #
+#                    --endian=little --cpu=Cortex-M3 --fpu=None               #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 6.4\arm\INC\c\DLib_Config_Normal.h" -I         #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\" -I "D:\stm32\BLDC        #
+#                    PMSM2\EWARM\..\..\STM32F10XFWLIB\inc\" -I                #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\inc\" -Oh                  #
+#                    --use_c++_inline --require_prototypes                    #
+#    List file    =  D:\stm32\BLDC PMSM2\EWARM\Debug\List\MC_Globals.lst      #
+#    Object file  =  D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\MC_Globals.o         #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+D:\stm32\BLDC PMSM2\src\MC_Globals.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : MC_Globals.c
+      3          * Author             : IMS Systems Lab
+      4          * Date First Issued  : 21/11/07
+      5          * Description        : This file contains the declarations of the global 
+      6          *                      variables utilized by the motor control library
+      7          ********************************************************************************
+      8          * History:
+      9          * 21/11/07 v1.0
+     10          * 29/05/08 v2.0
+     11          ********************************************************************************
+     12          * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+     13          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     14          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     15          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     16          * CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     17          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     18          *
+     19          * THIS SOURCE CODE IS PROTECTED BY A LICENSE.
+     20          * FOR MORE INFORMATION PLEASE CAREFULLY READ THE LICENSE AGREEMENT FILE LOCATED
+     21          * IN THE ROOT DIRECTORY OF THIS FIRMWARE PACKAGE.
+     22          *******************************************************************************/
+     23          /* Includes ------------------------------------------------------------------*/
+     24          #include "stm32f10x_lib.h"
+     25          #include "stm32f10x_MCconf.h"
+     26          #include "MC_const.h"
+     27          #include "MC_type.h"
+     28          #include "MC_Globals.h"
+     29          
+     30          /* Private typedef -----------------------------------------------------------*/
+     31          /* Private define ------------------------------------------------------------*/
+     32          /* Private macro -------------------------------------------------------------*/
+     33          /* Private variables ---------------------------------------------------------*/
+     34          
+     35          /* Electrical, magnetic and mechanical variables*/
+     36          
+
+   \                                 In section .bss, align 4
+     37          Curr_Components Stat_Curr_a_b;              /*Stator currents Ia,Ib*/ 
+   \                     Stat_Curr_a_b:
+   \   00000000                      DS8 4
+     38          
+
+   \                                 In section .bss, align 4
+     39          Curr_Components Stat_Curr_alfa_beta;        /*Ialpha & Ibeta, Clarke's  
+   \                     Stat_Curr_alfa_beta:
+   \   00000000                      DS8 4
+     40                                                      transformations of Ia & Ib */
+     41          
+
+   \                                 In section .bss, align 4
+     42          Curr_Components Stat_Curr_q_d;              /*Iq & Id, Parke's transformations of 
+   \                     Stat_Curr_q_d:
+   \   00000000                      DS8 4
+     43                                                      Ialpha & Ibeta, */
+     44          
+
+   \                                 In section .bss, align 4
+     45          Volt_Components Stat_Volt_a_b;              /*Stator voltages Va, Vb*/ 
+   \                     Stat_Volt_a_b:
+   \   00000000                      DS8 4
+     46          
+
+   \                                 In section .bss, align 4
+     47          Volt_Components Stat_Volt_q_d;              /*Vq & Vd, voltages on a reference
+   \                     Stat_Volt_q_d:
+   \   00000000                      DS8 4
+     48                                                      frame synchronous with the rotor flux*/
+     49          
+
+   \                                 In section .bss, align 4
+     50          Volt_Components Stat_Volt_alfa_beta;        /*Valpha & Vbeta, RevPark transformations
+   \                     Stat_Volt_alfa_beta:
+   \   00000000                      DS8 4
+     51                                                       of Vq & Vd*/
+     52          
+     53          /*Variable of convenience*/
+     54          
+     55          #ifdef FLUX_TORQUE_PIDs_TUNING
+     56          volatile u32 wGlobal_Flags = FIRST_START;
+     57          #else
+
+   \                                 In section .data, align 4
+     58          volatile u32 wGlobal_Flags = FIRST_START | SPEED_CONTROL;
+   \                     wGlobal_Flags:
+   \   00000000   0x00000003         DC32 3
+     59          #endif
+     60          
+
+   \                                 In section .bss, align 1
+     61          volatile SystStatus_t State;
+   \                     State:
+   \   00000000                      DS8 1
+     62          
+
+   \                                 In section .bss, align 4
+     63          PID_Struct_t PID_Flux_InitStructure;
+   \                     PID_Flux_InitStructure:
+   \   00000000                      DS8 32
+
+   \                                 In section .bss, align 2
+     64          volatile s16 hFlux_Reference;
+   \                     hFlux_Reference:
+   \   00000000                      DS8 2
+     65          
+
+   \                                 In section .bss, align 4
+     66          PID_Struct_t PID_Torque_InitStructure;
+   \                     PID_Torque_InitStructure:
+   \   00000000                      DS8 32
+
+   \                                 In section .bss, align 2
+     67          volatile s16 hTorque_Reference;
+   \                     hTorque_Reference:
+   \   00000000                      DS8 2
+     68          
+
+   \                                 In section .bss, align 4
+     69          PID_Struct_t   PID_Speed_InitStructure;
+   \                     PID_Speed_InitStructure:
+   \   00000000                      DS8 32
+
+   \                                 In section .bss, align 2
+     70          volatile s16 hSpeed_Reference;
+   \                     hSpeed_Reference:
+   \   00000000                      DS8 2
+     71          
+     72          /* Private function prototypes -----------------------------------------------*/
+     73          /* Private functions ---------------------------------------------------------*/
+     74          
+     75          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+
+   Section sizes:
+
+   Bytes  Function/Label
+   -----  --------------
+      32  PID_Flux_InitStructure
+      32  PID_Speed_InitStructure
+      32  PID_Torque_InitStructure
+       4  Stat_Curr_a_b
+       4  Stat_Curr_alfa_beta
+       4  Stat_Curr_q_d
+       4  Stat_Volt_a_b
+       4  Stat_Volt_alfa_beta
+       4  Stat_Volt_q_d
+       1  State
+       2  hFlux_Reference
+       2  hSpeed_Reference
+       2  hTorque_Reference
+       4  wGlobal_Flags
+
+ 
+ 127 bytes in section .bss
+   4 bytes in section .data
+ 
+ 131 bytes of DATA memory
+
+Errors: none
+Warnings: none

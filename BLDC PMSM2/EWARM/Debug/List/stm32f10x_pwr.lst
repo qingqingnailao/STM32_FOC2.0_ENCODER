@@ -1,0 +1,468 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V6.40.1.53790/W32 for ARM     24/Feb/2014  19:26:47 #
+# Copyright 1999-2012 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  D:\stm32\STM32F10XFWLIB\src\stm32f10x_pwr.c              #
+#    Command line =  D:\stm32\STM32F10XFWLIB\src\stm32f10x_pwr.c -D           #
+#                    VECT_TAB_FLASH -lCN "D:\stm32\BLDC                       #
+#                    PMSM2\EWARM\Debug\List\" --diag_error Pe068,Pe069 -o     #
+#                    "D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\" --debug           #
+#                    --endian=little --cpu=Cortex-M3 --fpu=None               #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 6.4\arm\INC\c\DLib_Config_Normal.h" -I         #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\" -I "D:\stm32\BLDC        #
+#                    PMSM2\EWARM\..\..\STM32F10XFWLIB\inc\" -I                #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\inc\" -Oh                  #
+#                    --use_c++_inline --require_prototypes                    #
+#    List file    =  D:\stm32\BLDC PMSM2\EWARM\Debug\List\stm32f10x_pwr.lst   #
+#    Object file  =  D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\stm32f10x_pwr.o      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+D:\stm32\STM32F10XFWLIB\src\stm32f10x_pwr.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : stm32f10x_pwr.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.0
+      5          * Date               : 05/23/2008
+      6          * Description        : This file provides all the PWR firmware functions.
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          * FOR MORE INFORMATION PLEASE CAREFULLY READ THE LICENSE AGREEMENT FILE LOCATED 
+     15          * IN THE ROOT DIRECTORY OF THIS FIRMWARE PACKAGE.
+     16          *******************************************************************************/
+     17          
+     18          /* Includes ------------------------------------------------------------------*/
+     19          #include "stm32f10x_pwr.h"
+     20          #include "stm32f10x_rcc.h"
+     21          
+     22          /* Private typedef -----------------------------------------------------------*/
+     23          /* Private define ------------------------------------------------------------*/
+     24          /* --------- PWR registers bit address in the alias region ---------- */
+     25          #define PWR_OFFSET               (PWR_BASE - PERIPH_BASE)
+     26          
+     27          /* --- CR Register ---*/
+     28          /* Alias word address of DBP bit */
+     29          #define CR_OFFSET                (PWR_OFFSET + 0x00)
+     30          #define DBP_BitNumber            0x08
+     31          #define CR_DBP_BB                (PERIPH_BB_BASE + (CR_OFFSET * 32) + (DBP_BitNumber * 4))
+     32          
+     33          /* Alias word address of PVDE bit */
+     34          #define PVDE_BitNumber           0x04
+     35          #define CR_PVDE_BB               (PERIPH_BB_BASE + (CR_OFFSET * 32) + (PVDE_BitNumber * 4))
+     36          
+     37          /* --- CSR Register ---*/
+     38          /* Alias word address of EWUP bit */
+     39          #define CSR_OFFSET               (PWR_OFFSET + 0x04)
+     40          #define EWUP_BitNumber           0x08
+     41          #define CSR_EWUP_BB              (PERIPH_BB_BASE + (CSR_OFFSET * 32) + (EWUP_BitNumber * 4))
+     42          
+     43          /* ------------------ PWR registers bit mask ------------------------ */
+     44          /* CR register bit mask */
+     45          #define CR_PDDS_Set              ((u32)0x00000002)
+     46          #define CR_DS_Mask               ((u32)0xFFFFFFFC)
+     47          #define CR_CWUF_Set              ((u32)0x00000004)
+     48          #define CR_PLS_Mask              ((u32)0xFFFFFF1F)
+     49          
+     50          /* --------- Cortex System Control register bit mask ---------------- */
+     51          /* Cortex System Control register address */
+     52          #define SCB_SysCtrl              ((u32)0xE000ED10)
+     53          /* SLEEPDEEP bit mask */
+     54          #define SysCtrl_SLEEPDEEP_Set    ((u32)0x00000004)
+     55          
+     56          /* Private macro -------------------------------------------------------------*/
+     57          /* Private variables ---------------------------------------------------------*/
+     58          /* Private function prototypes -----------------------------------------------*/
+     59          /* Private functions ---------------------------------------------------------*/
+     60          
+     61          /*******************************************************************************
+     62          * Function Name  : PWR_DeInit
+     63          * Description    : Deinitializes the PWR peripheral registers to their default
+     64          *                  reset values.
+     65          * Input          : None
+     66          * Output         : None
+     67          * Return         : None
+     68          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+     69          void PWR_DeInit(void)
+     70          {
+   \                     PWR_DeInit:
+   \   00000000   0xB580             PUSH     {R7,LR}
+     71            RCC_APB1PeriphResetCmd(RCC_APB1Periph_PWR, ENABLE);
+   \   00000002   0x2101             MOVS     R1,#+1
+   \   00000004   0xF04F 0x5080      MOV      R0,#+268435456
+   \   00000008   0x.... 0x....      BL       RCC_APB1PeriphResetCmd
+     72            RCC_APB1PeriphResetCmd(RCC_APB1Periph_PWR, DISABLE);
+   \   0000000C   0x2100             MOVS     R1,#+0
+   \   0000000E   0xF04F 0x5080      MOV      R0,#+268435456
+   \   00000012   0xE8BD 0x4004      POP      {R2,LR}
+   \   00000016   0x.... 0x....      B.W      RCC_APB1PeriphResetCmd
+     73          }
+     74          
+     75          /*******************************************************************************
+     76          * Function Name  : PWR_BackupAccessCmd
+     77          * Description    : Enables or disables access to the RTC and backup registers.
+     78          * Input          : - NewState: new state of the access to the RTC and backup
+     79          *                    registers. This parameter can be: ENABLE or DISABLE.
+     80          * Output         : None
+     81          * Return         : None
+     82          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+     83          void PWR_BackupAccessCmd(FunctionalState NewState)
+     84          {
+     85            /* Check the parameters */
+     86            assert_param(IS_FUNCTIONAL_STATE(NewState));
+     87          
+     88            *(vu32 *) CR_DBP_BB = (u32)NewState;
+   \                     PWR_BackupAccessCmd:
+   \   00000000   0x....             LDR.N    R1,??DataTable7  ;; 0x420e0020
+   \   00000002   0x6008             STR      R0,[R1, #+0]
+     89          }
+   \   00000004   0x4770             BX       LR               ;; return
+     90          
+     91          /*******************************************************************************
+     92          * Function Name  : PWR_PVDCmd
+     93          * Description    : Enables or disables the Power Voltage Detector(PVD).
+     94          * Input          : - NewState: new state of the PVD.
+     95          *                    This parameter can be: ENABLE or DISABLE.
+     96          * Output         : None
+     97          * Return         : None
+     98          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+     99          void PWR_PVDCmd(FunctionalState NewState)
+    100          {
+    101            /* Check the parameters */
+    102            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    103          
+    104            *(vu32 *) CR_PVDE_BB = (u32)NewState;
+   \                     PWR_PVDCmd:
+   \   00000000   0x....             LDR.N    R1,??DataTable7_1  ;; 0x420e0010
+   \   00000002   0x6008             STR      R0,[R1, #+0]
+    105          }
+   \   00000004   0x4770             BX       LR               ;; return
+    106          
+    107          /*******************************************************************************
+    108          * Function Name  : PWR_PVDLevelConfig
+    109          * Description    : Configures the voltage threshold detected by the Power Voltage
+    110          *                  Detector(PVD).
+    111          * Input          : - PWR_PVDLevel: specifies the PVD detection level
+    112          *                    This parameter can be one of the following values:
+    113          *                       - PWR_PVDLevel_2V2: PVD detection level set to 2.2V
+    114          *                       - PWR_PVDLevel_2V3: PVD detection level set to 2.3V
+    115          *                       - PWR_PVDLevel_2V4: PVD detection level set to 2.4V
+    116          *                       - PWR_PVDLevel_2V5: PVD detection level set to 2.5V
+    117          *                       - PWR_PVDLevel_2V6: PVD detection level set to 2.6V
+    118          *                       - PWR_PVDLevel_2V7: PVD detection level set to 2.7V
+    119          *                       - PWR_PVDLevel_2V8: PVD detection level set to 2.8V
+    120          *                       - PWR_PVDLevel_2V9: PVD detection level set to 2.9V
+    121          * Output         : None
+    122          * Return         : None
+    123          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    124          void PWR_PVDLevelConfig(u32 PWR_PVDLevel)
+    125          {
+    126            u32 tmpreg = 0;
+    127          
+    128            /* Check the parameters */
+    129            assert_param(IS_PWR_PVD_LEVEL(PWR_PVDLevel));
+    130          
+    131            tmpreg = PWR->CR;
+   \                     PWR_PVDLevelConfig:
+   \   00000000   0x....             LDR.N    R1,??DataTable7_2  ;; 0x40007000
+   \   00000002   0x680A             LDR      R2,[R1, #+0]
+    132          
+    133            /* Clear PLS[7:5] bits */
+    134            tmpreg &= CR_PLS_Mask;
+    135          
+    136            /* Set PLS[7:5] bits according to PWR_PVDLevel value */
+    137            tmpreg |= PWR_PVDLevel;
+    138          
+    139            /* Store the new value */
+    140            PWR->CR = tmpreg;
+   \   00000004   0xF022 0x02E0      BIC      R2,R2,#0xE0
+   \   00000008   0x4310             ORRS     R0,R0,R2
+   \   0000000A   0x6008             STR      R0,[R1, #+0]
+    141          }
+   \   0000000C   0x4770             BX       LR               ;; return
+    142          
+    143          /*******************************************************************************
+    144          * Function Name  : PWR_WakeUpPinCmd
+    145          * Description    : Enables or disables the WakeUp Pin functionality.
+    146          * Input          : - NewState: new state of the WakeUp Pin functionality.
+    147          *                    This parameter can be: ENABLE or DISABLE.
+    148          * Output         : None
+    149          * Return         : None
+    150          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    151          void PWR_WakeUpPinCmd(FunctionalState NewState)
+    152          {
+    153            /* Check the parameters */
+    154            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    155          
+    156            *(vu32 *) CSR_EWUP_BB = (u32)NewState;
+   \                     PWR_WakeUpPinCmd:
+   \   00000000   0x....             LDR.N    R1,??DataTable7_3  ;; 0x420e00a0
+   \   00000002   0x6008             STR      R0,[R1, #+0]
+    157          }
+   \   00000004   0x4770             BX       LR               ;; return
+    158          
+    159          /*******************************************************************************
+    160          * Function Name  : PWR_EnterSTOPMode
+    161          * Description    : Enters STOP mode.
+    162          * Input          : - PWR_Regulator: specifies the regulator state in STOP mode.
+    163          *                    This parameter can be one of the following values:
+    164          *                       - PWR_Regulator_ON: STOP mode with regulator ON
+    165          *                       - PWR_Regulator_LowPower: STOP mode with
+    166          *                         regulator in low power mode
+    167          *                  - PWR_STOPEntry: specifies if STOP mode in entered with WFI or 
+    168          *                    WFE instruction.
+    169          *                    This parameter can be one of the following values:
+    170          *                       - PWR_STOPEntry_WFI: enter STOP mode with WFI instruction
+    171          *                       - PWR_STOPEntry_WFE: enter STOP mode with WFE instruction
+    172          * Output         : None
+    173          * Return         : None
+    174          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    175          void PWR_EnterSTOPMode(u32 PWR_Regulator, u8 PWR_STOPEntry)
+    176          {
+    177            u32 tmpreg = 0;
+    178          
+    179            /* Check the parameters */
+    180            assert_param(IS_PWR_REGULATOR(PWR_Regulator));
+    181            assert_param(IS_PWR_STOP_ENTRY(PWR_STOPEntry));
+    182            
+    183            /* Select the regulator state in STOP mode ---------------------------------*/
+    184            tmpreg = PWR->CR;
+   \                     PWR_EnterSTOPMode:
+   \   00000000   0x....             LDR.N    R2,??DataTable7_2  ;; 0x40007000
+   \   00000002   0x6813             LDR      R3,[R2, #+0]
+    185          
+    186            /* Clear PDDS and LPDS bits */
+    187            tmpreg &= CR_DS_Mask;
+    188          
+    189            /* Set LPDS bit according to PWR_Regulator value */
+    190            tmpreg |= PWR_Regulator;
+    191          
+    192            /* Store the new value */
+    193            PWR->CR = tmpreg;
+   \   00000004   0x089B             LSRS     R3,R3,#+2
+   \   00000006   0xEA50 0x0083      ORRS     R0,R0,R3, LSL #+2
+   \   0000000A   0x6010             STR      R0,[R2, #+0]
+    194          
+    195            /* Set SLEEPDEEP bit of Cortex System Control Register */
+    196            *(vu32 *) SCB_SysCtrl |= SysCtrl_SLEEPDEEP_Set;
+   \   0000000C   0x....             LDR.N    R0,??DataTable7_4  ;; 0xe000ed10
+   \   0000000E   0x6802             LDR      R2,[R0, #+0]
+   \   00000010   0xF042 0x0204      ORR      R2,R2,#0x4
+   \   00000014   0x6002             STR      R2,[R0, #+0]
+    197            
+    198            /* Select STOP mode entry --------------------------------------------------*/
+    199            if(PWR_STOPEntry == PWR_STOPEntry_WFI)
+   \   00000016   0x2901             CMP      R1,#+1
+   \   00000018   0xBF08             IT       EQ 
+   \   0000001A   0x.... 0x....      BEQ.W    __WFI
+    200            {   
+    201              /* Request Wait For Interrupt */
+    202              __WFI();
+    203            }
+    204            else
+    205            {
+    206              /* Request Wait For Event */
+    207              __WFE();
+   \   0000001E   0x.... 0x....      B.W      __WFE
+    208            }
+    209          }
+    210          
+    211          /*******************************************************************************
+    212          * Function Name  : PWR_EnterSTANDBYMode
+    213          * Description    : Enters STANDBY mode.
+    214          * Input          : None
+    215          * Output         : None
+    216          * Return         : None
+    217          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    218          void PWR_EnterSTANDBYMode(void)
+    219          {
+    220            /* Clear Wake-up flag */
+    221            PWR->CR |= CR_CWUF_Set;
+   \                     PWR_EnterSTANDBYMode:
+   \   00000000   0x....             LDR.N    R0,??DataTable7_2  ;; 0x40007000
+   \   00000002   0x6801             LDR      R1,[R0, #+0]
+   \   00000004   0xF041 0x0104      ORR      R1,R1,#0x4
+   \   00000008   0x6001             STR      R1,[R0, #+0]
+    222          
+    223            /* Select STANDBY mode */
+    224            PWR->CR |= CR_PDDS_Set;
+   \   0000000A   0x6801             LDR      R1,[R0, #+0]
+   \   0000000C   0xF041 0x0102      ORR      R1,R1,#0x2
+   \   00000010   0x6001             STR      R1,[R0, #+0]
+    225          
+    226            /* Set SLEEPDEEP bit of Cortex System Control Register */
+    227            *(vu32 *) SCB_SysCtrl |= SysCtrl_SLEEPDEEP_Set;
+   \   00000012   0x....             LDR.N    R0,??DataTable7_4  ;; 0xe000ed10
+   \   00000014   0x6801             LDR      R1,[R0, #+0]
+   \   00000016   0xF041 0x0104      ORR      R1,R1,#0x4
+   \   0000001A   0x6001             STR      R1,[R0, #+0]
+    228          
+    229            /* Request Wait For Interrupt */
+    230            __WFI();
+   \   0000001C   0x.... 0x....      B.W      __WFI
+    231          }
+    232          
+    233          /*******************************************************************************
+    234          * Function Name  : PWR_GetFlagStatus
+    235          * Description    : Checks whether the specified PWR flag is set or not.
+    236          * Input          : - PWR_FLAG: specifies the flag to check.
+    237          *                    This parameter can be one of the following values:
+    238          *                       - PWR_FLAG_WU: Wake Up flag
+    239          *                       - PWR_FLAG_SB: StandBy flag
+    240          *                       - PWR_FLAG_PVDO: PVD Output
+    241          * Output         : None
+    242          * Return         : The new state of PWR_FLAG (SET or RESET).
+    243          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    244          FlagStatus PWR_GetFlagStatus(u32 PWR_FLAG)
+    245          {
+    246            FlagStatus bitstatus = RESET;
+   \                     PWR_GetFlagStatus:
+   \   00000000   0x2100             MOVS     R1,#+0
+    247          
+    248            /* Check the parameters */
+    249            assert_param(IS_PWR_GET_FLAG(PWR_FLAG));
+    250            
+    251            if ((PWR->CSR & PWR_FLAG) != (u32)RESET)
+   \   00000002   0x....             LDR.N    R2,??DataTable7_5  ;; 0x40007004
+   \   00000004   0x6812             LDR      R2,[R2, #+0]
+   \   00000006   0x4202             TST      R2,R0
+   \   00000008   0xBF18             IT       NE 
+   \   0000000A   0x2101             MOVNE    R1,#+1
+    252            {
+    253              bitstatus = SET;
+    254            }
+    255            else
+    256            {
+    257              bitstatus = RESET;
+    258            }
+    259          
+    260            /* Return the flag status */
+    261            return bitstatus;
+   \   0000000C   0x4608             MOV      R0,R1
+   \   0000000E   0x4770             BX       LR               ;; return
+    262          }
+    263          
+    264          /*******************************************************************************
+    265          * Function Name  : PWR_ClearFlag
+    266          * Description    : Clears the PWR's pending flags.
+    267          * Input          : - PWR_FLAG: specifies the flag to clear.
+    268          *                    This parameter can be one of the following values:
+    269          *                       - PWR_FLAG_WU: Wake Up flag
+    270          *                       - PWR_FLAG_SB: StandBy flag
+    271          * Output         : None
+    272          * Return         : None
+    273          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    274          void PWR_ClearFlag(u32 PWR_FLAG)
+    275          {
+    276            /* Check the parameters */
+    277            assert_param(IS_PWR_CLEAR_FLAG(PWR_FLAG));
+    278                   
+    279            PWR->CR |=  PWR_FLAG << 2;
+   \                     PWR_ClearFlag:
+   \   00000000   0x....             LDR.N    R1,??DataTable7_2  ;; 0x40007000
+   \   00000002   0x680A             LDR      R2,[R1, #+0]
+   \   00000004   0xEA42 0x0080      ORR      R0,R2,R0, LSL #+2
+   \   00000008   0x6008             STR      R0,[R1, #+0]
+    280          }
+   \   0000000A   0x4770             BX       LR               ;; return
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable7:
+   \   00000000   0x420E0020         DC32     0x420e0020
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable7_1:
+   \   00000000   0x420E0010         DC32     0x420e0010
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable7_2:
+   \   00000000   0x40007000         DC32     0x40007000
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable7_3:
+   \   00000000   0x420E00A0         DC32     0x420e00a0
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable7_4:
+   \   00000000   0xE000ED10         DC32     0xe000ed10
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable7_5:
+   \   00000000   0x40007004         DC32     0x40007004
+    281          
+    282          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+   .cstack Function
+   ------- --------
+        0  PWR_BackupAccessCmd
+        0  PWR_ClearFlag
+        8  PWR_DeInit
+             0 -> RCC_APB1PeriphResetCmd
+             8 -> RCC_APB1PeriphResetCmd
+        0  PWR_EnterSTANDBYMode
+             0 -> __WFI
+        0  PWR_EnterSTOPMode
+             0 -> __WFE
+             0 -> __WFI
+        0  PWR_GetFlagStatus
+        0  PWR_PVDCmd
+        0  PWR_PVDLevelConfig
+        0  PWR_WakeUpPinCmd
+
+
+   Section sizes:
+
+   Bytes  Function/Label
+   -----  --------------
+       4  ??DataTable7
+       4  ??DataTable7_1
+       4  ??DataTable7_2
+       4  ??DataTable7_3
+       4  ??DataTable7_4
+       4  ??DataTable7_5
+       6  PWR_BackupAccessCmd
+      12  PWR_ClearFlag
+      26  PWR_DeInit
+      32  PWR_EnterSTANDBYMode
+      34  PWR_EnterSTOPMode
+      16  PWR_GetFlagStatus
+       6  PWR_PVDCmd
+      14  PWR_PVDLevelConfig
+       6  PWR_WakeUpPinCmd
+
+ 
+ 176 bytes in section .text
+ 
+ 176 bytes of CODE memory
+
+Errors: none
+Warnings: none

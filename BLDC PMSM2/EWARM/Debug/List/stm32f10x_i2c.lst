@@ -1,0 +1,1821 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V6.40.1.53790/W32 for ARM     24/Feb/2014  19:26:46 #
+# Copyright 1999-2012 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  D:\stm32\STM32F10XFWLIB\src\stm32f10x_i2c.c              #
+#    Command line =  D:\stm32\STM32F10XFWLIB\src\stm32f10x_i2c.c -D           #
+#                    VECT_TAB_FLASH -lCN "D:\stm32\BLDC                       #
+#                    PMSM2\EWARM\Debug\List\" --diag_error Pe068,Pe069 -o     #
+#                    "D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\" --debug           #
+#                    --endian=little --cpu=Cortex-M3 --fpu=None               #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 6.4\arm\INC\c\DLib_Config_Normal.h" -I         #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\" -I "D:\stm32\BLDC        #
+#                    PMSM2\EWARM\..\..\STM32F10XFWLIB\inc\" -I                #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\inc\" -Oh                  #
+#                    --use_c++_inline --require_prototypes                    #
+#    List file    =  D:\stm32\BLDC PMSM2\EWARM\Debug\List\stm32f10x_i2c.lst   #
+#    Object file  =  D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\stm32f10x_i2c.o      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+D:\stm32\STM32F10XFWLIB\src\stm32f10x_i2c.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : stm32f10x_i2c.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.0
+      5          * Date               : 05/23/2008
+      6          * Description        : This file provides all the I2C firmware functions.
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          * FOR MORE INFORMATION PLEASE CAREFULLY READ THE LICENSE AGREEMENT FILE LOCATED 
+     15          * IN THE ROOT DIRECTORY OF THIS FIRMWARE PACKAGE.
+     16          *******************************************************************************/
+     17          
+     18          /* Includes ------------------------------------------------------------------*/
+     19          #include "stm32f10x_i2c.h"
+     20          #include "stm32f10x_rcc.h"
+     21          	 
+     22          /* Private typedef -----------------------------------------------------------*/
+     23          /* Private define ------------------------------------------------------------*/
+     24          /* I2C SPE mask */
+     25          #define CR1_PE_Set              ((u16)0x0001)
+     26          #define CR1_PE_Reset            ((u16)0xFFFE)
+     27          
+     28          /* I2C START mask */
+     29          #define CR1_START_Set           ((u16)0x0100)
+     30          #define CR1_START_Reset         ((u16)0xFEFF)
+     31          
+     32          /* I2C STOP mask */
+     33          #define CR1_STOP_Set            ((u16)0x0200)
+     34          #define CR1_STOP_Reset          ((u16)0xFDFF)
+     35          
+     36          /* I2C ACK mask */
+     37          #define CR1_ACK_Set             ((u16)0x0400)
+     38          #define CR1_ACK_Reset           ((u16)0xFBFF)
+     39          
+     40          /* I2C ENGC mask */
+     41          #define CR1_ENGC_Set            ((u16)0x0040)
+     42          #define CR1_ENGC_Reset          ((u16)0xFFBF)
+     43          
+     44          /* I2C SWRST mask */
+     45          #define CR1_SWRST_Set           ((u16)0x8000)
+     46          #define CR1_SWRST_Reset         ((u16)0x7FFF)
+     47          
+     48          /* I2C PEC mask */
+     49          #define CR1_PEC_Set             ((u16)0x1000)
+     50          #define CR1_PEC_Reset           ((u16)0xEFFF)
+     51          
+     52          /* I2C ENPEC mask */
+     53          #define CR1_ENPEC_Set           ((u16)0x0020)
+     54          #define CR1_ENPEC_Reset         ((u16)0xFFDF)
+     55          
+     56          /* I2C ENARP mask */
+     57          #define CR1_ENARP_Set           ((u16)0x0010)
+     58          #define CR1_ENARP_Reset         ((u16)0xFFEF)
+     59          
+     60          /* I2C NOSTRETCH mask */
+     61          #define CR1_NOSTRETCH_Set       ((u16)0x0080)
+     62          #define CR1_NOSTRETCH_Reset     ((u16)0xFF7F)
+     63          
+     64          /* I2C registers Masks */
+     65          #define CR1_CLEAR_Mask          ((u16)0xFBF5)
+     66          
+     67          /* I2C DMAEN mask */
+     68          #define CR2_DMAEN_Set           ((u16)0x0800)
+     69          #define CR2_DMAEN_Reset         ((u16)0xF7FF)
+     70          
+     71          /* I2C LAST mask */
+     72          #define CR2_LAST_Set            ((u16)0x1000)
+     73          #define CR2_LAST_Reset          ((u16)0xEFFF)
+     74          
+     75          /* I2C FREQ mask */
+     76          #define CR2_FREQ_Reset          ((u16)0xFFC0)
+     77          
+     78          /* I2C ADD0 mask */
+     79          #define OAR1_ADD0_Set           ((u16)0x0001)
+     80          #define OAR1_ADD0_Reset         ((u16)0xFFFE)
+     81          
+     82          /* I2C ENDUAL mask */
+     83          #define OAR2_ENDUAL_Set         ((u16)0x0001)
+     84          #define OAR2_ENDUAL_Reset       ((u16)0xFFFE)
+     85          
+     86          /* I2C ADD2 mask */
+     87          #define OAR2_ADD2_Reset         ((u16)0xFF01)
+     88          
+     89          /* I2C F/S mask */
+     90          #define CCR_FS_Set              ((u16)0x8000)
+     91          
+     92          /* I2C CCR mask */
+     93          #define CCR_CCR_Set             ((u16)0x0FFF)
+     94          
+     95          /* I2C FLAG mask */
+     96          #define FLAG_Mask               ((u32)0x00FFFFFF)
+     97          
+     98          /* Private macro -------------------------------------------------------------*/
+     99          /* Private variables ---------------------------------------------------------*/
+    100          /* Private function prototypes -----------------------------------------------*/
+    101          /* Private functions ---------------------------------------------------------*/
+    102          
+    103          /*******************************************************************************
+    104          * Function Name  : I2C_DeInit
+    105          * Description    : Deinitializes the I2Cx peripheral registers to their default
+    106          *                  reset values.
+    107          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    108          * Output         : None
+    109          * Return         : None
+    110          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    111          void I2C_DeInit(I2C_TypeDef* I2Cx)
+    112          {
+   \                     I2C_DeInit:
+   \   00000000   0xB580             PUSH     {R7,LR}
+    113            /* Check the parameters */
+    114            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    115          
+    116            switch (*(u32*)&I2Cx)
+   \   00000002   0x....             LDR.N    R1,??DataTable1  ;; 0x40005400
+   \   00000004   0x4288             CMP      R0,R1
+   \   00000006   0xD003             BEQ.N    ??I2C_DeInit_0
+   \   00000008   0x....             LDR.N    R1,??DataTable1_1  ;; 0x40005800
+   \   0000000A   0x4288             CMP      R0,R1
+   \   0000000C   0xD009             BEQ.N    ??I2C_DeInit_1
+   \   0000000E   0xBD01             POP      {R0,PC}
+    117            {
+    118              case I2C1_BASE:
+    119                /* Enable I2C1 reset state */
+    120                RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C1, ENABLE);
+   \                     ??I2C_DeInit_0:
+   \   00000010   0x2101             MOVS     R1,#+1
+   \   00000012   0xF44F 0x1000      MOV      R0,#+2097152
+   \   00000016   0x.... 0x....      BL       RCC_APB1PeriphResetCmd
+    121                /* Release I2C1 from reset state */
+    122                RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C1, DISABLE);
+   \   0000001A   0x2100             MOVS     R1,#+0
+   \   0000001C   0xF44F 0x1000      MOV      R0,#+2097152
+   \   00000020   0xE007             B.N      ??I2C_DeInit_2
+    123                break;
+    124          
+    125              case I2C2_BASE:
+    126                /* Enable I2C2 reset state */
+    127                RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C2, ENABLE);
+   \                     ??I2C_DeInit_1:
+   \   00000022   0x2101             MOVS     R1,#+1
+   \   00000024   0xF44F 0x0080      MOV      R0,#+4194304
+   \   00000028   0x.... 0x....      BL       RCC_APB1PeriphResetCmd
+    128                /* Release I2C2 from reset state */
+    129                RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C2, DISABLE);
+   \   0000002C   0x2100             MOVS     R1,#+0
+   \   0000002E   0xF44F 0x0080      MOV      R0,#+4194304
+   \                     ??I2C_DeInit_2:
+   \   00000032   0xE8BD 0x4004      POP      {R2,LR}
+   \   00000036   0x.... 0x....      B.W      RCC_APB1PeriphResetCmd
+    130                break;
+    131          
+    132              default:
+    133                break;
+    134            }
+    135          }
+    136          
+    137          /*******************************************************************************
+    138          * Function Name  : I2C_Init
+    139          * Description    : Initializes the I2Cx peripheral according to the specified 
+    140          *                  parameters in the I2C_InitStruct.
+    141          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    142          *                  - I2C_InitStruct: pointer to a I2C_InitTypeDef structure that
+    143          *                    contains the configuration information for the specified
+    144          *                    I2C peripheral.
+    145          * Output         : None
+    146          * Return         : None
+    147          ******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    148          void I2C_Init(I2C_TypeDef* I2Cx, I2C_InitTypeDef* I2C_InitStruct)
+    149          {
+   \                     I2C_Init:
+   \   00000000   0xB570             PUSH     {R4-R6,LR}
+   \   00000002   0xB086             SUB      SP,SP,#+24
+   \   00000004   0x4604             MOV      R4,R0
+   \   00000006   0x460D             MOV      R5,R1
+    150            u16 tmpreg = 0, freqrange = 0;
+    151            u16 result = 0x04;
+    152            u32 pclk1 = 8000000;
+    153            RCC_ClocksTypeDef  rcc_clocks;
+    154          
+    155            /* Check the parameters */
+    156            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    157            assert_param(IS_I2C_MODE(I2C_InitStruct->I2C_Mode));
+    158            assert_param(IS_I2C_DUTY_CYCLE(I2C_InitStruct->I2C_DutyCycle));
+    159            assert_param(IS_I2C_OWN_ADDRESS1(I2C_InitStruct->I2C_OwnAddress1));
+    160            assert_param(IS_I2C_ACK_STATE(I2C_InitStruct->I2C_Ack));
+    161            assert_param(IS_I2C_ACKNOWLEDGE_ADDRESS(I2C_InitStruct->I2C_AcknowledgedAddress));
+    162            assert_param(IS_I2C_CLOCK_SPEED(I2C_InitStruct->I2C_ClockSpeed));
+    163          
+    164          /*---------------------------- I2Cx CR2 Configuration ------------------------*/
+    165            /* Get the I2Cx CR2 value */
+    166            tmpreg = I2Cx->CR2;
+   \   00000008   0x88A6             LDRH     R6,[R4, #+4]
+    167            /* Clear frequency FREQ[5:0] bits */
+    168            tmpreg &= CR2_FREQ_Reset;
+    169            /* Get pclk1 frequency value */
+    170            RCC_GetClocksFreq(&rcc_clocks);
+   \   0000000A   0xA800             ADD      R0,SP,#+0
+   \   0000000C   0x.... 0x....      BL       RCC_GetClocksFreq
+    171            pclk1 = rcc_clocks.PCLK1_Frequency;
+   \   00000010   0x9902             LDR      R1,[SP, #+8]
+    172            /* Set frequency bits depending on pclk1 value */
+    173            freqrange = (u16)(pclk1 / 1000000);
+   \   00000012   0x....             LDR.N    R0,??DataTable1_2  ;; 0xf4240
+   \   00000014   0xFBB1 0xF0F0      UDIV     R0,R1,R0
+    174            tmpreg |= freqrange;
+    175            /* Write to I2Cx CR2 */
+    176            I2Cx->CR2 = tmpreg;
+   \   00000018   0xF64F 0x72C0      MOVW     R2,#+65472
+   \   0000001C   0x4032             ANDS     R2,R2,R6
+   \   0000001E   0x4302             ORRS     R2,R0,R2
+   \   00000020   0x80A2             STRH     R2,[R4, #+4]
+    177          
+    178          /*---------------------------- I2Cx CCR Configuration ------------------------*/
+    179            /* Disable the selected I2C peripheral to configure TRISE */
+    180            I2Cx->CR1 &= CR1_PE_Reset;
+   \   00000022   0x8822             LDRH     R2,[R4, #+0]
+   \   00000024   0xF64F 0x73FE      MOVW     R3,#+65534
+   \   00000028   0x401A             ANDS     R2,R3,R2
+   \   0000002A   0x8022             STRH     R2,[R4, #+0]
+    181          
+    182            /* Reset tmpreg value */
+    183            /* Clear F/S, DUTY and CCR[11:0] bits */
+    184            tmpreg = 0;
+    185          
+    186            /* Configure speed in standard mode */
+    187            if (I2C_InitStruct->I2C_ClockSpeed <= 100000)
+   \   0000002C   0x68EA             LDR      R2,[R5, #+12]
+   \   0000002E   0x....             LDR.N    R3,??DataTable1_3  ;; 0x186a1
+   \   00000030   0x429A             CMP      R2,R3
+   \   00000032   0xD207             BCS.N    ??I2C_Init_0
+    188            {
+    189              /* Standard mode speed calculate */
+    190              result = (u16)(pclk1 / (I2C_InitStruct->I2C_ClockSpeed << 1));
+   \   00000034   0x0052             LSLS     R2,R2,#+1
+   \   00000036   0xFBB1 0xF1F2      UDIV     R1,R1,R2
+   \   0000003A   0xB289             UXTH     R1,R1
+    191              /* Test if CCR value is under 0x4*/
+    192              if (result < 0x04)
+   \   0000003C   0x2904             CMP      R1,#+4
+   \   0000003E   0xD220             BCS.N    ??I2C_Init_1
+    193              {
+    194                /* Set minimum allowed value */
+    195                result = 0x04;  
+   \   00000040   0x2104             MOVS     R1,#+4
+    196              }
+    197              /* Set speed value for standard mode */
+    198              tmpreg |= result;	  
+    199              /* Set Maximum Rise Time for standard mode */
+    200              I2Cx->TRISE = freqrange + 1; 
+   \   00000042   0xE01E             B.N      ??I2C_Init_1
+    201            }
+    202            /* Configure speed in fast mode */
+    203            else /*(I2C_InitStruct->I2C_ClockSpeed <= 400000)*/
+    204            {
+    205              if (I2C_InitStruct->I2C_DutyCycle == I2C_DutyCycle_2)
+   \                     ??I2C_Init_0:
+   \   00000044   0x886B             LDRH     R3,[R5, #+2]
+   \   00000046   0xF64B 0x76FF      MOVW     R6,#+49151
+   \   0000004A   0x42B3             CMP      R3,R6
+   \   0000004C   0xD104             BNE.N    ??I2C_Init_2
+    206              {
+    207                /* Fast mode speed calculate: Tlow/Thigh = 2 */
+    208                result = (u16)(pclk1 / (I2C_InitStruct->I2C_ClockSpeed * 3));
+   \   0000004E   0xEB02 0x0242      ADD      R2,R2,R2, LSL #+1
+   \   00000052   0xFBB1 0xF1F2      UDIV     R1,R1,R2
+   \   00000056   0xE005             B.N      ??I2C_Init_3
+    209              }
+    210              else /*I2C_InitStruct->I2C_DutyCycle == I2C_DutyCycle_16_9*/
+    211              {
+    212                /* Fast mode speed calculate: Tlow/Thigh = 16/9 */
+    213                result = (u16)(pclk1 / (I2C_InitStruct->I2C_ClockSpeed * 25));
+    214                /* Set DUTY bit */
+    215                result |= I2C_DutyCycle_16_9;
+   \                     ??I2C_Init_2:
+   \   00000058   0x2319             MOVS     R3,#+25
+   \   0000005A   0x435A             MULS     R2,R3,R2
+   \   0000005C   0xFBB1 0xF1F2      UDIV     R1,R1,R2
+   \   00000060   0xF441 0x4180      ORR      R1,R1,#0x4000
+   \                     ??I2C_Init_3:
+   \   00000064   0xB289             UXTH     R1,R1
+    216              }
+    217              /* Test if CCR value is under 0x1*/
+    218              if ((result & CCR_CCR_Set) == 0)
+   \   00000066   0x050A             LSLS     R2,R1,#+20
+   \   00000068   0xBF08             IT       EQ 
+   \   0000006A   0xF041 0x0101      ORREQ    R1,R1,#0x1
+    219              {
+    220                /* Set minimum allowed value */
+    221                result |= (u16)0x0001;  
+    222              }
+    223              /* Set speed value and set F/S bit for fast mode */
+    224              tmpreg |= result | CCR_FS_Set;
+   \   0000006E   0xF441 0x4100      ORR      R1,R1,#0x8000
+    225              /* Set Maximum Rise Time for fast mode */
+    226              I2Cx->TRISE = (u16)(((freqrange * 300) / 1000) + 1);  
+   \   00000072   0xB280             UXTH     R0,R0
+   \   00000074   0xF44F 0x7296      MOV      R2,#+300
+   \   00000078   0x4350             MULS     R0,R2,R0
+   \   0000007A   0xF44F 0x727A      MOV      R2,#+1000
+   \   0000007E   0xFB90 0xF0F2      SDIV     R0,R0,R2
+   \                     ??I2C_Init_1:
+   \   00000082   0x1C40             ADDS     R0,R0,#+1
+   \   00000084   0x8420             STRH     R0,[R4, #+32]
+    227            }
+    228            /* Write to I2Cx CCR */
+    229            I2Cx->CCR = tmpreg;
+   \   00000086   0x83A1             STRH     R1,[R4, #+28]
+    230          
+    231            /* Enable the selected I2C peripheral */
+    232            I2Cx->CR1 |= CR1_PE_Set;
+   \   00000088   0x8820             LDRH     R0,[R4, #+0]
+   \   0000008A   0xF040 0x0001      ORR      R0,R0,#0x1
+   \   0000008E   0x8020             STRH     R0,[R4, #+0]
+    233          
+    234          /*---------------------------- I2Cx CR1 Configuration ------------------------*/
+    235            /* Get the I2Cx CR1 value */
+    236            tmpreg = I2Cx->CR1;
+    237            /* Clear ACK, SMBTYPE and  SMBUS bits */
+    238            tmpreg &= CR1_CLEAR_Mask;
+    239            /* Configure I2Cx: mode and acknowledgement */
+    240            /* Set SMBTYPE and SMBUS bits according to I2C_Mode value */
+    241            /* Set ACK bit according to I2C_Ack value */
+    242            tmpreg |= (u16)((u32)I2C_InitStruct->I2C_Mode | I2C_InitStruct->I2C_Ack);
+    243            /* Write to I2Cx CR1 */
+    244            I2Cx->CR1 = tmpreg;
+   \   00000090   0x8820             LDRH     R0,[R4, #+0]
+   \   00000092   0xF64F 0x31F5      MOVW     R1,#+64501
+   \   00000096   0x4008             ANDS     R0,R1,R0
+   \   00000098   0x8829             LDRH     R1,[R5, #+0]
+   \   0000009A   0x4308             ORRS     R0,R1,R0
+   \   0000009C   0x88E9             LDRH     R1,[R5, #+6]
+   \   0000009E   0x4308             ORRS     R0,R1,R0
+   \   000000A0   0x8020             STRH     R0,[R4, #+0]
+    245          
+    246          /*---------------------------- I2Cx OAR1 Configuration -----------------------*/
+    247            /* Set I2Cx Own Address1 and acknowledged address */
+    248            I2Cx->OAR1 = (I2C_InitStruct->I2C_AcknowledgedAddress | I2C_InitStruct->I2C_OwnAddress1);
+   \   000000A2   0x8928             LDRH     R0,[R5, #+8]
+   \   000000A4   0x88A9             LDRH     R1,[R5, #+4]
+   \   000000A6   0x4308             ORRS     R0,R1,R0
+   \   000000A8   0x8120             STRH     R0,[R4, #+8]
+    249          }
+   \   000000AA   0xB006             ADD      SP,SP,#+24
+   \   000000AC   0xBD70             POP      {R4-R6,PC}       ;; return
+    250          
+    251          /*******************************************************************************
+    252          * Function Name  : I2C_StructInit
+    253          * Description    : Fills each I2C_InitStruct member with its default value.
+    254          * Input          : - I2C_InitStruct: pointer to an I2C_InitTypeDef structure
+    255          *                    which will be initialized.
+    256          * Output         : None
+    257          * Return         : None
+    258          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    259          void I2C_StructInit(I2C_InitTypeDef* I2C_InitStruct)
+    260          {
+    261          /*---------------- Reset I2C init structure parameters values ----------------*/
+    262            /* Initialize the I2C_Mode member */
+    263            I2C_InitStruct->I2C_Mode = I2C_Mode_I2C;
+   \                     I2C_StructInit:
+   \   00000000   0x2100             MOVS     R1,#+0
+   \   00000002   0x8001             STRH     R1,[R0, #+0]
+    264          
+    265            /* Initialize the I2C_DutyCycle member */
+    266            I2C_InitStruct->I2C_DutyCycle = I2C_DutyCycle_2;
+   \   00000004   0xF64B 0x71FF      MOVW     R1,#+49151
+   \   00000008   0x8041             STRH     R1,[R0, #+2]
+    267          
+    268            /* Initialize the I2C_OwnAddress1 member */
+    269            I2C_InitStruct->I2C_OwnAddress1 = 0;
+   \   0000000A   0x2100             MOVS     R1,#+0
+   \   0000000C   0x8081             STRH     R1,[R0, #+4]
+    270          
+    271            /* Initialize the I2C_Ack member */
+    272            I2C_InitStruct->I2C_Ack = I2C_Ack_Disable;
+   \   0000000E   0x80C1             STRH     R1,[R0, #+6]
+    273          
+    274            /* Initialize the I2C_AcknowledgedAddress member */
+    275            I2C_InitStruct->I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
+   \   00000010   0xF44F 0x4180      MOV      R1,#+16384
+   \   00000014   0x8101             STRH     R1,[R0, #+8]
+    276          
+    277            /* initialize the I2C_ClockSpeed member */
+    278            I2C_InitStruct->I2C_ClockSpeed = 5000;
+   \   00000016   0xF241 0x3188      MOVW     R1,#+5000
+   \   0000001A   0x60C1             STR      R1,[R0, #+12]
+    279          }
+   \   0000001C   0x4770             BX       LR               ;; return
+    280          
+    281          /*******************************************************************************
+    282          * Function Name  : I2C_Cmd
+    283          * Description    : Enables or disables the specified I2C peripheral.
+    284          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    285          *                  - NewState: new state of the I2Cx peripheral. This parameter
+    286          *                    can be: ENABLE or DISABLE.
+    287          * Output         : None
+    288          * Return         : None
+    289          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    290          void I2C_Cmd(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    291          {
+    292            /* Check the parameters */
+    293            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    294            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    295          
+    296            if (NewState != DISABLE)
+   \                     I2C_Cmd:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF041 0x0101      ORRNE    R1,R1,#0x1
+   \   0000000A   0xF64F 0x72FE      MOVWEQ   R2,#+65534
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    297            {
+    298              /* Enable the selected I2C peripheral */
+    299              I2Cx->CR1 |= CR1_PE_Set;
+    300            }
+    301            else
+    302            {
+    303              /* Disable the selected I2C peripheral */
+    304              I2Cx->CR1 &= CR1_PE_Reset;
+   \   00000010   0x8001             STRH     R1,[R0, #+0]
+    305            }
+    306          }
+   \   00000012   0x4770             BX       LR               ;; return
+    307          
+    308          /*******************************************************************************
+    309          * Function Name  : I2C_DMACmd
+    310          * Description    : Enables or disables the specified I2C DMA requests.
+    311          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    312          *                  - NewState: new state of the I2C DMA transfer.
+    313          *                    This parameter can be: ENABLE or DISABLE.
+    314          * Output         : None
+    315          * Return         : None
+    316          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    317          void I2C_DMACmd(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    318          {
+    319            /* Check the parameters */
+    320            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    321            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    322          
+    323            if (NewState != DISABLE)
+   \                     I2C_DMACmd:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8881             LDRH     R1,[R0, #+4]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF441 0x6100      ORRNE    R1,R1,#0x800
+   \   0000000A   0xF24F 0x72FF      MOVWEQ   R2,#+63487
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    324            {
+    325              /* Enable the selected I2C DMA requests */
+    326              I2Cx->CR2 |= CR2_DMAEN_Set;
+    327            }
+    328            else
+    329            {
+    330              /* Disable the selected I2C DMA requests */
+    331              I2Cx->CR2 &= CR2_DMAEN_Reset;
+   \   00000010   0x8081             STRH     R1,[R0, #+4]
+    332            }
+    333          }
+   \   00000012   0x4770             BX       LR               ;; return
+    334          
+    335          /*******************************************************************************
+    336          * Function Name  : I2C_DMALastTransferCmd
+    337          * Description    : Specifies that the next DMA transfer is the last one.
+    338          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    339          *                  - NewState: new state of the I2C DMA last transfer.
+    340          *                    This parameter can be: ENABLE or DISABLE.
+    341          * Output         : None
+    342          * Return         : None
+    343          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    344          void I2C_DMALastTransferCmd(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    345          {
+    346            /* Check the parameters */
+    347            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    348            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    349          
+    350            if (NewState != DISABLE)
+   \                     I2C_DMALastTransferCmd:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8881             LDRH     R1,[R0, #+4]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF441 0x5180      ORRNE    R1,R1,#0x1000
+   \   0000000A   0xF64E 0x72FF      MOVWEQ   R2,#+61439
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    351            {
+    352              /* Next DMA transfer is the last transfer */
+    353              I2Cx->CR2 |= CR2_LAST_Set;
+    354            }
+    355            else
+    356            {
+    357              /* Next DMA transfer is not the last transfer */
+    358              I2Cx->CR2 &= CR2_LAST_Reset;
+   \   00000010   0x8081             STRH     R1,[R0, #+4]
+    359            }
+    360          }
+   \   00000012   0x4770             BX       LR               ;; return
+    361          
+    362          /*******************************************************************************
+    363          * Function Name  : I2C_GenerateSTART
+    364          * Description    : Generates I2Cx communication START condition.
+    365          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    366          *                  - NewState: new state of the I2C START condition generation.
+    367          *                    This parameter can be: ENABLE or DISABLE.
+    368          * Output         : None
+    369          * Return         : None.
+    370          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    371          void I2C_GenerateSTART(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    372          {
+    373            /* Check the parameters */
+    374            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    375            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    376          
+    377            if (NewState != DISABLE)
+   \                     I2C_GenerateSTART:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF441 0x7180      ORRNE    R1,R1,#0x100
+   \   0000000A   0xF64F 0x62FF      MOVWEQ   R2,#+65279
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    378            {
+    379              /* Generate a START condition */
+    380              I2Cx->CR1 |= CR1_START_Set;
+    381            }
+    382            else
+    383            {
+    384              /* Disable the START condition generation */
+    385              I2Cx->CR1 &= CR1_START_Reset;
+   \   00000010   0x8001             STRH     R1,[R0, #+0]
+    386            }
+    387          }
+   \   00000012   0x4770             BX       LR               ;; return
+    388          
+    389          /*******************************************************************************
+    390          * Function Name  : I2C_GenerateSTOP
+    391          * Description    : Generates I2Cx communication STOP condition.
+    392          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    393          *                  - NewState: new state of the I2C STOP condition generation.
+    394          *                    This parameter can be: ENABLE or DISABLE.
+    395          * Output         : None
+    396          * Return         : None.
+    397          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    398          void I2C_GenerateSTOP(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    399          {
+    400            /* Check the parameters */
+    401            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    402            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    403          
+    404            if (NewState != DISABLE)
+   \                     I2C_GenerateSTOP:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF441 0x7100      ORRNE    R1,R1,#0x200
+   \   0000000A   0xF64F 0x52FF      MOVWEQ   R2,#+65023
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    405            {
+    406              /* Generate a STOP condition */
+    407              I2Cx->CR1 |= CR1_STOP_Set;
+    408            }
+    409            else
+    410            {
+    411              /* Disable the STOP condition generation */
+    412              I2Cx->CR1 &= CR1_STOP_Reset;
+   \   00000010   0x8001             STRH     R1,[R0, #+0]
+    413            }
+    414          }
+   \   00000012   0x4770             BX       LR               ;; return
+    415          
+    416          /*******************************************************************************
+    417          * Function Name  : I2C_AcknowledgeConfig
+    418          * Description    : Enables or disables the specified I2C acknowledge feature.
+    419          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    420          *                  - NewState: new state of the I2C Acknowledgement.
+    421          *                    This parameter can be: ENABLE or DISABLE.
+    422          * Output         : None
+    423          * Return         : None.
+    424          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    425          void I2C_AcknowledgeConfig(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    426          {
+    427            /* Check the parameters */
+    428            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    429            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    430          
+    431            if (NewState != DISABLE)
+   \                     I2C_AcknowledgeConfig:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF441 0x6180      ORRNE    R1,R1,#0x400
+   \   0000000A   0xF64F 0x32FF      MOVWEQ   R2,#+64511
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    432            {
+    433              /* Enable the acknowledgement */
+    434              I2Cx->CR1 |= CR1_ACK_Set;
+    435            }
+    436            else
+    437            {
+    438              /* Disable the acknowledgement */
+    439              I2Cx->CR1 &= CR1_ACK_Reset;
+   \   00000010   0x8001             STRH     R1,[R0, #+0]
+    440            }
+    441          }
+   \   00000012   0x4770             BX       LR               ;; return
+    442          
+    443          /*******************************************************************************
+    444          * Function Name  : I2C_OwnAddress2Config
+    445          * Description    : Configures the specified I2C own address2.
+    446          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    447          *                  - Address: specifies the 7bit I2C own address2.
+    448          * Output         : None
+    449          * Return         : None.
+    450          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    451          void I2C_OwnAddress2Config(I2C_TypeDef* I2Cx, u8 Address)
+    452          {
+    453            u16 tmpreg = 0;
+    454          
+    455            /* Check the parameters */
+    456            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    457          
+    458            /* Get the old register value */
+    459            tmpreg = I2Cx->OAR2;
+    460            /* Reset I2Cx Own address2 bit [7:1] */
+    461            tmpreg &= OAR2_ADD2_Reset;
+    462            /* Set I2Cx Own address2 */
+    463            tmpreg |= (u16)(Address & (u16)0x00FE);
+    464            /* Store the new register value */
+    465            I2Cx->OAR2 = tmpreg;
+   \                     I2C_OwnAddress2Config:
+   \   00000000   0x8982             LDRH     R2,[R0, #+12]
+   \   00000002   0xF64F 0x7301      MOVW     R3,#+65281
+   \   00000006   0x401A             ANDS     R2,R3,R2
+   \   00000008   0xF001 0x01FE      AND      R1,R1,#0xFE
+   \   0000000C   0x4311             ORRS     R1,R1,R2
+   \   0000000E   0x8181             STRH     R1,[R0, #+12]
+    466          }
+   \   00000010   0x4770             BX       LR               ;; return
+    467          
+    468          /*******************************************************************************
+    469          * Function Name  : I2C_DualAddressCmd
+    470          * Description    : Enables or disables the specified I2C dual addressing mode.
+    471          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    472          *                  - NewState: new state of the I2C dual addressing mode.
+    473          *                    This parameter can be: ENABLE or DISABLE.
+    474          * Output         : None
+    475          * Return         : None
+    476          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    477          void I2C_DualAddressCmd(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    478          {
+    479            /* Check the parameters */
+    480            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    481            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    482          
+    483            if (NewState != DISABLE)
+   \                     I2C_DualAddressCmd:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8981             LDRH     R1,[R0, #+12]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF041 0x0101      ORRNE    R1,R1,#0x1
+   \   0000000A   0xF64F 0x72FE      MOVWEQ   R2,#+65534
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    484            {
+    485              /* Enable dual addressing mode */
+    486              I2Cx->OAR2 |= OAR2_ENDUAL_Set;
+    487            }
+    488            else
+    489            {
+    490              /* Disable dual addressing mode */
+    491              I2Cx->OAR2 &= OAR2_ENDUAL_Reset;
+   \   00000010   0x8181             STRH     R1,[R0, #+12]
+    492            }
+    493          }
+   \   00000012   0x4770             BX       LR               ;; return
+    494          
+    495          /*******************************************************************************
+    496          * Function Name  : I2C_GeneralCallCmd
+    497          * Description    : Enables or disables the specified I2C general call feature.
+    498          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    499          *                  - NewState: new state of the I2C General call.
+    500          *                    This parameter can be: ENABLE or DISABLE.
+    501          * Output         : None
+    502          * Return         : None
+    503          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    504          void I2C_GeneralCallCmd(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    505          {
+    506            /* Check the parameters */
+    507            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    508            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    509          
+    510            if (NewState != DISABLE)
+   \                     I2C_GeneralCallCmd:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF041 0x0140      ORRNE    R1,R1,#0x40
+   \   0000000A   0xF64F 0x72BF      MOVWEQ   R2,#+65471
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    511            {
+    512              /* Enable generall call */
+    513              I2Cx->CR1 |= CR1_ENGC_Set;
+    514            }
+    515            else
+    516            {
+    517              /* Disable generall call */
+    518              I2Cx->CR1 &= CR1_ENGC_Reset;
+   \   00000010   0x8001             STRH     R1,[R0, #+0]
+    519            }
+    520          }
+   \   00000012   0x4770             BX       LR               ;; return
+    521          
+    522          /*******************************************************************************
+    523          * Function Name  : I2C_ITConfig
+    524          * Description    : Enables or disables the specified I2C interrupts.
+    525          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    526          *                  - I2C_IT: specifies the I2C interrupts sources to be enabled
+    527          *                    or disabled. 
+    528          *                    This parameter can be any combination of the following values:
+    529          *                       - I2C_IT_BUF: Buffer interrupt mask
+    530          *                       - I2C_IT_EVT: Event interrupt mask
+    531          *                       - I2C_IT_ERR: Error interrupt mask
+    532          *                  - NewState: new state of the specified I2C interrupts.
+    533          *                    This parameter can be: ENABLE or DISABLE.
+    534          * Output         : None
+    535          * Return         : None
+    536          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    537          void I2C_ITConfig(I2C_TypeDef* I2Cx, u16 I2C_IT, FunctionalState NewState)
+    538          {
+    539            /* Check the parameters */
+    540            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    541            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    542            assert_param(IS_I2C_CONFIG_IT(I2C_IT));
+    543            
+    544            if (NewState != DISABLE)
+   \                     I2C_ITConfig:
+   \   00000000   0x2A00             CMP      R2,#+0
+   \   00000002   0x8882             LDRH     R2,[R0, #+4]
+   \   00000004   0xBF14             ITE      NE 
+   \   00000006   0x4311             ORRNE    R1,R1,R2
+   \   00000008   0xEA22 0x0101      BICEQ    R1,R2,R1
+    545            {
+    546              /* Enable the selected I2C interrupts */
+    547              I2Cx->CR2 |= I2C_IT;
+    548            }
+    549            else
+    550            {
+    551              /* Disable the selected I2C interrupts */
+    552              I2Cx->CR2 &= (u16)~I2C_IT;
+   \   0000000C   0x8081             STRH     R1,[R0, #+4]
+    553            }
+    554          }
+   \   0000000E   0x4770             BX       LR               ;; return
+    555          
+    556          /*******************************************************************************
+    557          * Function Name  : I2C_SendData
+    558          * Description    : Sends a data byte through the I2Cx peripheral.
+    559          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    560          *                  - Data: Byte to be transmitted..
+    561          * Output         : None
+    562          * Return         : None
+    563          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    564          void I2C_SendData(I2C_TypeDef* I2Cx, u8 Data)
+    565          {
+    566            /* Check the parameters */
+    567            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    568          
+    569            /* Write in the DR register the data to be sent */
+    570            I2Cx->DR = Data;
+   \                     I2C_SendData:
+   \   00000000   0x8201             STRH     R1,[R0, #+16]
+    571          }
+   \   00000002   0x4770             BX       LR               ;; return
+    572          
+    573          /*******************************************************************************
+    574          * Function Name  : I2C_ReceiveData
+    575          * Description    : Returns the most recent received data by the I2Cx peripheral.
+    576          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    577          * Output         : None
+    578          * Return         : The value of the received data.
+    579          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    580          u8 I2C_ReceiveData(I2C_TypeDef* I2Cx)
+    581          {
+    582            /* Check the parameters */
+    583            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    584          
+    585            /* Return the data in the DR register */
+    586            return (u8)I2Cx->DR;
+   \                     I2C_ReceiveData:
+   \   00000000   0x8A00             LDRH     R0,[R0, #+16]
+   \   00000002   0xB2C0             UXTB     R0,R0
+   \   00000004   0x4770             BX       LR               ;; return
+    587          }
+    588          
+    589          /*******************************************************************************
+    590          * Function Name  : I2C_Send7bitAddress
+    591          * Description    : Transmits the address byte to select the slave device.
+    592          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    593          *                  - Address: specifies the slave address which will be transmitted
+    594          *                  - I2C_Direction: specifies whether the I2C device will be a
+    595          *                    Transmitter or a Receiver. 
+    596          *                    This parameter can be one of the following values
+    597          *                       - I2C_Direction_Transmitter: Transmitter mode
+    598          *                       - I2C_Direction_Receiver: Receiver mode
+    599          * Output         : None
+    600          * Return         : None.
+    601          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    602          void I2C_Send7bitAddress(I2C_TypeDef* I2Cx, u8 Address, u8 I2C_Direction)
+    603          {
+    604            /* Check the parameters */
+    605            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    606            assert_param(IS_I2C_DIRECTION(I2C_Direction));
+    607          
+    608            /* Test on the direction to set/reset the read/write bit */
+    609            if (I2C_Direction != I2C_Direction_Transmitter)
+   \                     I2C_Send7bitAddress:
+   \   00000000   0x2A00             CMP      R2,#+0
+   \   00000002   0xBF14             ITE      NE 
+   \   00000004   0xF041 0x0101      ORRNE    R1,R1,#0x1
+   \   00000008   0xF001 0x01FE      ANDEQ    R1,R1,#0xFE
+    610            {
+    611              /* Set the address bit0 for read */
+    612              Address |= OAR1_ADD0_Set;
+    613            }
+    614            else
+    615            {
+    616              /* Reset the address bit0 for write */
+    617              Address &= OAR1_ADD0_Reset;
+    618            }
+    619            /* Send the address */
+    620            I2Cx->DR = Address;
+   \   0000000C   0x8201             STRH     R1,[R0, #+16]
+    621          }
+   \   0000000E   0x4770             BX       LR               ;; return
+    622          
+    623          /*******************************************************************************
+    624          * Function Name  : I2C_ReadRegister
+    625          * Description    : Reads the specified I2C register and returns its value.
+    626          * Input1         : - I2C_Register: specifies the register to read.
+    627          *                    This parameter can be one of the following values:
+    628          *                       - I2C_Register_CR1:  CR1 register.
+    629          *                       - I2C_Register_CR2:   CR2 register.
+    630          *                       - I2C_Register_OAR1:  OAR1 register.
+    631          *                       - I2C_Register_OAR2:  OAR2 register.
+    632          *                       - I2C_Register_DR:    DR register.
+    633          *                       - I2C_Register_SR1:   SR1 register.
+    634          *                       - I2C_Register_SR2:   SR2 register.
+    635          *                       - I2C_Register_CCR:   CCR register.
+    636          *                       - I2C_Register_TRISE: TRISE register.
+    637          * Output         : None
+    638          * Return         : The value of the read register.
+    639          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    640          u16 I2C_ReadRegister(I2C_TypeDef* I2Cx, u8 I2C_Register)
+    641          {
+    642            /* Check the parameters */
+    643            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    644            assert_param(IS_I2C_REGISTER(I2C_Register));
+    645          
+    646            /* Return the selected register value */
+    647            return (*(vu16 *)(*((vu32 *)&I2Cx) + I2C_Register));
+   \                     I2C_ReadRegister:
+   \   00000000   0x5A08             LDRH     R0,[R1, R0]
+   \   00000002   0x4770             BX       LR               ;; return
+    648          }
+    649          
+    650          /*******************************************************************************
+    651          * Function Name  : I2C_SoftwareResetCmd
+    652          * Description    : Enables or disables the specified I2C software reset.
+    653          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    654          *                  - NewState: new state of the I2C software reset.
+    655          *                    This parameter can be: ENABLE or DISABLE.
+    656          * Output         : None
+    657          * Return         : None
+    658          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    659          void I2C_SoftwareResetCmd(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    660          {
+    661            /* Check the parameters */
+    662            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    663            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    664          
+    665            if (NewState != DISABLE)
+   \                     I2C_SoftwareResetCmd:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF441 0x4100      ORRNE    R1,R1,#0x8000
+   \   0000000A   0x0449             LSLEQ    R1,R1,#+17
+   \   0000000C   0x0C49             LSREQ    R1,R1,#+17
+    666            {
+    667              /* Peripheral under reset */
+    668              I2Cx->CR1 |= CR1_SWRST_Set;
+    669            }
+    670            else
+    671            {
+    672              /* Peripheral not under reset */
+    673              I2Cx->CR1 &= CR1_SWRST_Reset;
+   \   0000000E   0x8001             STRH     R1,[R0, #+0]
+    674            }
+    675          }
+   \   00000010   0x4770             BX       LR               ;; return
+    676          
+    677          /*******************************************************************************
+    678          * Function Name  : I2C_SMBusAlertConfig
+    679          * Description    : Drives the SMBusAlert pin high or low for the specified I2C.
+    680          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    681          *                  - I2C_SMBusAlert: specifies SMBAlert pin level. 
+    682          *                    This parameter can be one of the following values:
+    683          *                       - I2C_SMBusAlert_Low: SMBAlert pin driven low
+    684          *                       - I2C_SMBusAlert_High: SMBAlert pin driven high
+    685          * Output         : None
+    686          * Return         : None
+    687          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    688          void I2C_SMBusAlertConfig(I2C_TypeDef* I2Cx, u16 I2C_SMBusAlert)
+    689          {
+    690            /* Check the parameters */
+    691            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    692            assert_param(IS_I2C_SMBUS_ALERT(I2C_SMBusAlert));
+    693          
+    694            if (I2C_SMBusAlert == I2C_SMBusAlert_Low)
+   \                     I2C_SMBusAlertConfig:
+   \   00000000   0xF5B1 0x5F00      CMP      R1,#+8192
+   \   00000004   0x8801             LDRH     R1,[R0, #+0]
+   \   00000006   0xBF0E             ITEE     EQ 
+   \   00000008   0xF441 0x5100      ORREQ    R1,R1,#0x2000
+   \   0000000C   0xF64D 0x72FF      MOVWNE   R2,#+57343
+   \   00000010   0x4011             ANDNE    R1,R2,R1
+    695            {
+    696              /* Drive the SMBusAlert pin Low */
+    697              I2Cx->CR1 |= I2C_SMBusAlert_Low;
+    698            }
+    699            else
+    700            {
+    701              /* Drive the SMBusAlert pin High  */
+    702              I2Cx->CR1 &= I2C_SMBusAlert_High;
+   \   00000012   0x8001             STRH     R1,[R0, #+0]
+    703            }
+    704          }
+   \   00000014   0x4770             BX       LR               ;; return
+    705          
+    706          /*******************************************************************************
+    707          * Function Name  : I2C_TransmitPEC
+    708          * Description    : Enables or disables the specified I2C PEC transfer.
+    709          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    710          *                  - NewState: new state of the I2C PEC transmission.
+    711          *                    This parameter can be: ENABLE or DISABLE.
+    712          * Output         : None
+    713          * Return         : None
+    714          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    715          void I2C_TransmitPEC(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    716          {
+    717            /* Check the parameters */
+    718            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    719            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    720          
+    721            if (NewState != DISABLE)
+   \                     I2C_TransmitPEC:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF441 0x5180      ORRNE    R1,R1,#0x1000
+   \   0000000A   0xF64E 0x72FF      MOVWEQ   R2,#+61439
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    722            {
+    723              /* Enable the selected I2C PEC transmission */
+    724              I2Cx->CR1 |= CR1_PEC_Set;
+    725            }
+    726            else
+    727            {
+    728              /* Disable the selected I2C PEC transmission */
+    729              I2Cx->CR1 &= CR1_PEC_Reset;
+   \   00000010   0x8001             STRH     R1,[R0, #+0]
+    730            }
+    731          }
+   \   00000012   0x4770             BX       LR               ;; return
+    732          
+    733          /*******************************************************************************
+    734          * Function Name  : I2C_PECPositionConfig
+    735          * Description    : Selects the specified I2C PEC position.
+    736          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    737          *                  - I2C_PECPosition: specifies the PEC position. 
+    738          *                    This parameter can be one of the following values:
+    739          *                       - I2C_PECPosition_Next: indicates that the next
+    740          *                         byte is PEC
+    741          *                       - I2C_PECPosition_Current: indicates that current
+    742          *                         byte is PEC
+    743          * Output         : None
+    744          * Return         : None
+    745          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    746          void I2C_PECPositionConfig(I2C_TypeDef* I2Cx, u16 I2C_PECPosition)
+    747          {
+    748            /* Check the parameters */
+    749            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    750            assert_param(IS_I2C_PEC_POSITION(I2C_PECPosition));
+    751          
+    752            if (I2C_PECPosition == I2C_PECPosition_Next)
+   \                     I2C_PECPositionConfig:
+   \   00000000   0xF5B1 0x6F00      CMP      R1,#+2048
+   \   00000004   0x8801             LDRH     R1,[R0, #+0]
+   \   00000006   0xBF0E             ITEE     EQ 
+   \   00000008   0xF441 0x6100      ORREQ    R1,R1,#0x800
+   \   0000000C   0xF24F 0x72FF      MOVWNE   R2,#+63487
+   \   00000010   0x4011             ANDNE    R1,R2,R1
+    753            {
+    754              /* Next byte in shift register is PEC */
+    755              I2Cx->CR1 |= I2C_PECPosition_Next;
+    756            }
+    757            else
+    758            {
+    759              /* Current byte in shift register is PEC */
+    760              I2Cx->CR1 &= I2C_PECPosition_Current;
+   \   00000012   0x8001             STRH     R1,[R0, #+0]
+    761            }
+    762          }
+   \   00000014   0x4770             BX       LR               ;; return
+    763          
+    764          /*******************************************************************************
+    765          * Function Name  : I2C_CalculatePEC
+    766          * Description    : Enables or disables the PEC value calculation of the
+    767          *                  transfered bytes.
+    768          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    769          *                  - NewState: new state of the I2Cx PEC value calculation.
+    770          *                    This parameter can be: ENABLE or DISABLE.
+    771          * Output         : None
+    772          * Return         : None
+    773          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    774          void I2C_CalculatePEC(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    775          {
+    776            /* Check the parameters */
+    777            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    778            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    779          
+    780            if (NewState != DISABLE)
+   \                     I2C_CalculatePEC:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF041 0x0120      ORRNE    R1,R1,#0x20
+   \   0000000A   0xF64F 0x72DF      MOVWEQ   R2,#+65503
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    781            {
+    782              /* Enable the selected I2C PEC calculation */
+    783              I2Cx->CR1 |= CR1_ENPEC_Set;
+    784            }
+    785            else
+    786            {
+    787              /* Disable the selected I2C PEC calculation */
+    788              I2Cx->CR1 &= CR1_ENPEC_Reset;
+   \   00000010   0x8001             STRH     R1,[R0, #+0]
+    789            }
+    790          }
+   \   00000012   0x4770             BX       LR               ;; return
+    791          
+    792          /*******************************************************************************
+    793          * Function Name  : I2C_GetPEC
+    794          * Description    : Returns the PEC value for the specified I2C.
+    795          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    796          * Output         : None
+    797          * Return         : The PEC value.
+    798          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    799          u8 I2C_GetPEC(I2C_TypeDef* I2Cx)
+    800          {
+    801            /* Check the parameters */
+    802            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    803          
+    804            /* Return the selected I2C PEC value */
+    805            return ((I2Cx->SR2) >> 8);
+   \                     I2C_GetPEC:
+   \   00000000   0x8B00             LDRH     R0,[R0, #+24]
+   \   00000002   0x0A00             LSRS     R0,R0,#+8
+   \   00000004   0x4770             BX       LR               ;; return
+    806          }
+    807          
+    808          /*******************************************************************************
+    809          * Function Name  : I2C_ARPCmd
+    810          * Description    : Enables or disables the specified I2C ARP.
+    811          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    812          *                  - NewState: new state of the I2Cx ARP. 
+    813          *                    This parameter can be: ENABLE or DISABLE.
+    814          * Output         : None
+    815          * Return         : None
+    816          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    817          void I2C_ARPCmd(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    818          {
+    819            /* Check the parameters */
+    820            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    821            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    822          
+    823            if (NewState != DISABLE)
+   \                     I2C_ARPCmd:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF12             ITEE     NE 
+   \   00000006   0xF041 0x0110      ORRNE    R1,R1,#0x10
+   \   0000000A   0xF64F 0x72EF      MOVWEQ   R2,#+65519
+   \   0000000E   0x4011             ANDEQ    R1,R2,R1
+    824            {
+    825              /* Enable the selected I2C ARP */
+    826              I2Cx->CR1 |= CR1_ENARP_Set;
+    827            }
+    828            else
+    829            {
+    830              /* Disable the selected I2C ARP */
+    831              I2Cx->CR1 &= CR1_ENARP_Reset;
+   \   00000010   0x8001             STRH     R1,[R0, #+0]
+    832            }
+    833          }
+   \   00000012   0x4770             BX       LR               ;; return
+    834          
+    835          /*******************************************************************************
+    836          * Function Name  : I2C_StretchClockCmd
+    837          * Description    : Enables or disables the specified I2C Clock stretching.
+    838          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    839          *                  - NewState: new state of the I2Cx Clock stretching.
+    840          *                    This parameter can be: ENABLE or DISABLE.
+    841          * Output         : None
+    842          * Return         : None
+    843          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    844          void I2C_StretchClockCmd(I2C_TypeDef* I2Cx, FunctionalState NewState)
+    845          {
+    846            /* Check the parameters */
+    847            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    848            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    849          
+    850            if (NewState == DISABLE)
+   \                     I2C_StretchClockCmd:
+   \   00000000   0x2900             CMP      R1,#+0
+   \   00000002   0x8801             LDRH     R1,[R0, #+0]
+   \   00000004   0xBF0E             ITEE     EQ 
+   \   00000006   0xF041 0x0180      ORREQ    R1,R1,#0x80
+   \   0000000A   0xF64F 0x727F      MOVWNE   R2,#+65407
+   \   0000000E   0x4011             ANDNE    R1,R2,R1
+    851            {
+    852              /* Enable the selected I2C Clock stretching */
+    853              I2Cx->CR1 |= CR1_NOSTRETCH_Set;
+    854            }
+    855            else
+    856            {
+    857              /* Disable the selected I2C Clock stretching */
+    858              I2Cx->CR1 &= CR1_NOSTRETCH_Reset;
+   \   00000010   0x8001             STRH     R1,[R0, #+0]
+    859            }
+    860          }
+   \   00000012   0x4770             BX       LR               ;; return
+    861          
+    862          /*******************************************************************************
+    863          * Function Name  : I2C_FastModeDutyCycleConfig
+    864          * Description    : Selects the specified I2C fast mode duty cycle.
+    865          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    866          *                  - I2C_DutyCycle: specifies the fast mode duty cycle.
+    867          *                    This parameter can be one of the following values:
+    868          *                       - I2C_DutyCycle_2: I2C fast mode Tlow/Thigh = 2
+    869          *                       - I2C_DutyCycle_16_9: I2C fast mode Tlow/Thigh = 16/9
+    870          * Output         : None
+    871          * Return         : None
+    872          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    873          void I2C_FastModeDutyCycleConfig(I2C_TypeDef* I2Cx, u16 I2C_DutyCycle)
+    874          {
+    875            /* Check the parameters */
+    876            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    877            assert_param(IS_I2C_DUTY_CYCLE(I2C_DutyCycle));
+    878          
+    879            if (I2C_DutyCycle != I2C_DutyCycle_16_9)
+   \                     I2C_FastModeDutyCycleConfig:
+   \   00000000   0xF5B1 0x4F80      CMP      R1,#+16384
+   \   00000004   0x8B81             LDRH     R1,[R0, #+28]
+   \   00000006   0xBF1A             ITTE     NE 
+   \   00000008   0xF64B 0x72FF      MOVWNE   R2,#+49151
+   \   0000000C   0x4011             ANDNE    R1,R2,R1
+   \   0000000E   0xF441 0x4180      ORREQ    R1,R1,#0x4000
+    880            {
+    881              /* I2C fast mode Tlow/Thigh=2 */
+    882              I2Cx->CCR &= I2C_DutyCycle_2;
+    883            }
+    884            else
+    885            {
+    886              /* I2C fast mode Tlow/Thigh=16/9 */
+    887              I2Cx->CCR |= I2C_DutyCycle_16_9;
+   \   00000012   0x8381             STRH     R1,[R0, #+28]
+    888            }
+    889          }
+   \   00000014   0x4770             BX       LR               ;; return
+    890          
+    891          /*******************************************************************************
+    892          * Function Name  : I2C_GetLastEvent
+    893          * Description    : Returns the last I2Cx Event.
+    894          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    895          * Output         : None
+    896          * Return         : The last event
+    897          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    898          u32 I2C_GetLastEvent(I2C_TypeDef* I2Cx)
+    899          {
+    900            u32 lastevent = 0;
+    901            u32 flag1 = 0, flag2 = 0;
+    902          
+    903            /* Check the parameters */
+    904            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    905          
+    906            /* Read the I2Cx status register */
+    907            flag1 = I2Cx->SR1;
+   \                     I2C_GetLastEvent:
+   \   00000000   0x8A81             LDRH     R1,[R0, #+20]
+    908            flag2 = I2Cx->SR2;
+   \   00000002   0x8B00             LDRH     R0,[R0, #+24]
+    909            flag2 = flag2 << 16;
+    910          
+    911            /* Get the last event value from I2C status register */
+    912            lastevent = (flag1 | flag2) & FLAG_Mask;
+    913          
+    914            /* Return status */
+    915            return lastevent;
+   \   00000004   0xEA41 0x4000      ORR      R0,R1,R0, LSL #+16
+   \   00000008   0x0200             LSLS     R0,R0,#+8
+   \   0000000A   0x0A00             LSRS     R0,R0,#+8
+   \   0000000C   0x4770             BX       LR               ;; return
+    916          }
+    917          
+    918          /*******************************************************************************
+    919          * Function Name  : I2C_CheckEvent
+    920          * Description    : Checks whether the last I2Cx Event is equal to the one passed
+    921          *                  as parameter.
+    922          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    923          *                  - I2C_EVENT: specifies the event to be checked. 
+    924          *                    This parameter can be one of the following values:
+    925          *                       - I2C_EVENT_SLAVE_ADDRESS_MATCHED   : EV1
+    926          *                       - I2C_EVENT_SLAVE_BYTE_RECEIVED     : EV2
+    927          *                       - I2C_EVENT_SLAVE_BYTE_TRANSMITTED  : EV3
+    928          *                       - I2C_EVENT_SLAVE_ACK_FAILURE       : EV3-2
+    929          *                       - I2C_EVENT_MASTER_MODE_SELECT      : EV5
+    930          *                       - I2C_EVENT_MASTER_MODE_SELECTED    : EV6
+    931          *                       - I2C_EVENT_MASTER_BYTE_RECEIVED    : EV7
+    932          *                       - I2C_EVENT_MASTER_BYTE_TRANSMITTED : EV8
+    933          *                       - I2C_EVENT_MASTER_MODE_ADDRESS10   : EV9
+    934          *                       - I2C_EVENT_SLAVE_STOP_DETECTED     : EV4
+    935          * Output         : None
+    936          * Return         : An ErrorStatus enumuration value:
+    937          *                       - SUCCESS: Last event is equal to the I2C_EVENT
+    938          *                       - ERROR: Last event is different from the I2C_EVENT
+    939          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    940          ErrorStatus I2C_CheckEvent(I2C_TypeDef* I2Cx, u32 I2C_EVENT)
+    941          {
+    942            u32 lastevent = 0;
+    943            u32 flag1 = 0, flag2 = 0;
+    944            ErrorStatus status = ERROR;
+   \                     I2C_CheckEvent:
+   \   00000000   0x2200             MOVS     R2,#+0
+    945          
+    946            /* Check the parameters */
+    947            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+    948            assert_param(IS_I2C_EVENT(I2C_EVENT));
+    949          
+    950            /* Read the I2Cx status register */
+    951            flag1 = I2Cx->SR1;
+   \   00000002   0x8A83             LDRH     R3,[R0, #+20]
+    952            flag2 = I2Cx->SR2;
+   \   00000004   0x8B00             LDRH     R0,[R0, #+24]
+    953            flag2 = flag2 << 16;
+    954          
+    955            /* Get the last event value from I2C status register */
+    956            lastevent = (flag1 | flag2) & FLAG_Mask;
+    957          
+    958            /* Check whether the last event is equal to I2C_EVENT */
+    959            if (lastevent == I2C_EVENT )
+   \   00000006   0xEA43 0x4000      ORR      R0,R3,R0, LSL #+16
+   \   0000000A   0x0200             LSLS     R0,R0,#+8
+   \   0000000C   0x0A00             LSRS     R0,R0,#+8
+   \   0000000E   0x4288             CMP      R0,R1
+   \   00000010   0xBF08             IT       EQ 
+   \   00000012   0x2201             MOVEQ    R2,#+1
+    960            {
+    961              /* SUCCESS: last event is equal to I2C_EVENT */
+    962              status = SUCCESS;
+    963            }
+    964            else
+    965            {
+    966              /* ERROR: last event is different from I2C_EVENT */
+    967              status = ERROR;
+    968            }
+    969          
+    970            /* Return status */
+    971            return status;
+   \   00000014   0x4610             MOV      R0,R2
+   \   00000016   0x4770             BX       LR               ;; return
+    972          }
+    973          
+    974          /*******************************************************************************
+    975          * Function Name  : I2C_GetFlagStatus
+    976          * Description    : Checks whether the specified I2C flag is set or not.
+    977          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+    978          *                  - I2C_FLAG: specifies the flag to check. 
+    979          *                    This parameter can be one of the following values:
+    980          *                       - I2C_FLAG_DUALF: Dual flag (Slave mode)
+    981          *                       - I2C_FLAG_SMBHOST: SMBus host header (Slave mode)
+    982          *                       - I2C_FLAG_SMBDEFAULT: SMBus default header (Slave mode)
+    983          *                       - I2C_FLAG_GENCALL: General call header flag (Slave mode)
+    984          *                       - I2C_FLAG_TRA: Transmitter/Receiver flag
+    985          *                       - I2C_FLAG_BUSY: Bus busy flag
+    986          *                       - I2C_FLAG_MSL: Master/Slave flag
+    987          *                       - I2C_FLAG_SMBALERT: SMBus Alert flag
+    988          *                       - I2C_FLAG_TIMEOUT: Timeout or Tlow error flag
+    989          *                       - I2C_FLAG_PECERR: PEC error in reception flag
+    990          *                       - I2C_FLAG_OVR: Overrun/Underrun flag (Slave mode)
+    991          *                       - I2C_FLAG_AF: Acknowledge failure flag
+    992          *                       - I2C_FLAG_ARLO: Arbitration lost flag (Master mode)
+    993          *                       - I2C_FLAG_BERR: Bus error flag
+    994          *                       - I2C_FLAG_TXE: Data register empty flag (Transmitter)
+    995          *                       - I2C_FLAG_RXNE: Data register not empty (Receiver) flag
+    996          *                       - I2C_FLAG_STOPF: Stop detection flag (Slave mode)
+    997          *                       - I2C_FLAG_ADD10: 10-bit header sent flag (Master mode)
+    998          *                       - I2C_FLAG_BTF: Byte transfer finished flag
+    999          *                       - I2C_FLAG_ADDR: Address sent flag (Master mode) “ADSL”
+   1000          *                                        Address matched flag (Slave mode)”ENDAD”
+   1001          *                       - I2C_FLAG_SB: Start bit flag (Master mode)
+   1002          * Output         : None
+   1003          * Return         : The new state of I2C_FLAG (SET or RESET).
+   1004          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+   1005          FlagStatus I2C_GetFlagStatus(I2C_TypeDef* I2Cx, u32 I2C_FLAG)
+   1006          {
+   1007            FlagStatus bitstatus = RESET;
+   \                     I2C_GetFlagStatus:
+   \   00000000   0x2200             MOVS     R2,#+0
+   1008            u32 i2cstatus = 0;
+   1009            u32 flag1 = 0, flag2 = 0;
+   1010          
+   1011            /* Check the parameters */
+   1012            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+   1013            assert_param(IS_I2C_GET_FLAG(I2C_FLAG));
+   1014          
+   1015            /* Read the I2Cx status register */
+   1016            flag1 = I2Cx->SR1;
+   \   00000002   0x8A83             LDRH     R3,[R0, #+20]
+   1017            flag2 = I2Cx->SR2;
+   \   00000004   0x8B00             LDRH     R0,[R0, #+24]
+   1018            flag2 = (flag2 & FLAG_Mask) << 16;
+   1019          
+   1020            /* Get the I2C status value */
+   1021            i2cstatus = flag1 | flag2;
+   1022          
+   1023            /* Get bit[23:0] of the flag */
+   1024            I2C_FLAG &= FLAG_Mask;
+   1025          
+   1026            /* Check the status of the specified I2C flag */
+   1027            if ((i2cstatus & I2C_FLAG) != (u32)RESET)
+   \   00000006   0xEA43 0x4000      ORR      R0,R3,R0, LSL #+16
+   \   0000000A   0x4008             ANDS     R0,R1,R0
+   \   0000000C   0x0200             LSLS     R0,R0,#+8
+   \   0000000E   0xBF18             IT       NE 
+   \   00000010   0x2201             MOVNE    R2,#+1
+   1028            {
+   1029              /* I2C_FLAG is set */
+   1030              bitstatus = SET;
+   1031            }
+   1032            else
+   1033            {
+   1034              /* I2C_FLAG is reset */
+   1035              bitstatus = RESET;
+   1036            }
+   1037            /* Return the I2C_FLAG status */
+   1038            return  bitstatus;
+   \   00000012   0x4610             MOV      R0,R2
+   \   00000014   0x4770             BX       LR               ;; return
+   1039          }
+   1040          
+   1041          /*******************************************************************************
+   1042          * Function Name  : I2C_ClearFlag
+   1043          * Description    : Clears the I2Cx's pending flags.
+   1044          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+   1045          *                  - I2C_FLAG: specifies the flag to clear. 
+   1046          *                    This parameter can be one of the following values:
+   1047          *                       - I2C_FLAG_SMBALERT: SMBus Alert flag
+   1048          *                       - I2C_FLAG_TIMEOUT: Timeout or Tlow error flag
+   1049          *                       - I2C_FLAG_PECERR: PEC error in reception flag
+   1050          *                       - I2C_FLAG_OVR: Overrun/Underrun flag (Slave mode)
+   1051          *                       - I2C_FLAG_AF: Acknowledge failure flag
+   1052          *                       - I2C_FLAG_ARLO: Arbitration lost flag (Master mode)
+   1053          *                       - I2C_FLAG_BERR: Bus error flag
+   1054          *                       - I2C_FLAG_STOPF: Stop detection flag (Slave mode)
+   1055          *                       - I2C_FLAG_ADD10: 10-bit header sent flag (Master mode)
+   1056          *                       - I2C_FLAG_BTF: Byte transfer finished flag
+   1057          *                       - I2C_FLAG_ADDR: Address sent flag (Master mode) “ADSL”
+   1058          *                                        Address matched flag (Slave mode)”ENDAD”
+   1059          *                       - I2C_FLAG_SB: Start bit flag (Master mode)
+   1060          * Output         : None
+   1061          * Return         : None
+   1062          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+   1063          void I2C_ClearFlag(I2C_TypeDef* I2Cx, u32 I2C_FLAG)
+   1064          {
+   1065            u32 flagpos = 0;
+   1066            u32 flagindex = 0;
+   1067          
+   1068            /* Check the parameters */
+   1069            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+   1070            assert_param(IS_I2C_CLEAR_FLAG(I2C_FLAG));
+   1071          
+   1072            /* Get the I2C flag position */
+   1073            flagpos = I2C_FLAG & FLAG_Mask;
+   1074          
+   1075            /* Get the I2C flag index */
+   1076            flagindex = I2C_FLAG >> 28;
+   \                     I2C_ClearFlag:
+   \   00000000   0x0F0A             LSRS     R2,R1,#+28
+   1077          
+   1078            /* Clear the flag by writing 0 */
+   1079            if (flagindex == 1)
+   \   00000002   0x2A01             CMP      R2,#+1
+   \   00000004   0xD100             BNE.N    ??I2C_ClearFlag_0
+   1080            {
+   1081              /* Clear the selected I2C flag */
+   1082              I2Cx->SR1 = (u16)~flagpos;
+   \   00000006   0x....             B.N      ?Subroutine1
+   1083            }
+   1084            /* Flags that need a read of the SR1 register to be cleared */
+   1085            else if (flagindex == 2)
+   \                     ??I2C_ClearFlag_0:
+   \   00000008   0x2A02             CMP      R2,#+2
+   \   0000000A   0xD101             BNE.N    ??I2C_ClearFlag_1
+   1086            {
+   1087              /* Read the SR1 register */
+   1088              (void)I2Cx->SR1;
+   \   0000000C   0x8A80             LDRH     R0,[R0, #+20]
+   \   0000000E   0x4770             BX       LR
+   1089            }
+   1090            /* Flags that need a read of SR1 and a write on CR1 registers to be cleared */
+   1091            else if (flagindex == 6)
+   \                     ??I2C_ClearFlag_1:
+   \   00000010   0x2A06             CMP      R2,#+6
+   \   00000012   0x8A81             LDRH     R1,[R0, #+20]
+   \   00000014   0xD100             BNE.N    ??I2C_ClearFlag_2
+   1092            {
+   1093              /* Read the SR1 register */
+   1094              (void)I2Cx->SR1;
+   1095          
+   1096              /* Write on the CR1 register */
+   1097              I2Cx->CR1 |= CR1_PE_Set;
+   \   00000016   0x....             B.N      ?Subroutine0
+   1098            }
+   1099            /* Flags that need a read of SR1 and SR2 registers to be cleared */
+   1100            else /*flagindex == 0xA*/
+   1101            {
+   1102              /* Read the SR1 register */
+   1103              (void)I2Cx->SR1;
+   1104          
+   1105              /* Read the SR2 register */
+   1106              (void)I2Cx->SR2;
+   \                     ??I2C_ClearFlag_2:
+   \   00000018   0x8B00             LDRH     R0,[R0, #+24]
+   1107            }
+   1108          }
+   \   0000001A   0x4770             BX       LR               ;; return
+
+   \                                 In section .text, align 2, keep-with-next
+   \                     ?Subroutine1:
+   \   00000000   0x43C9             MVNS     R1,R1
+   \   00000002   0x8281             STRH     R1,[R0, #+20]
+   \   00000004   0x4770             BX       LR
+
+   \                                 In section .text, align 2, keep-with-next
+   \                     ?Subroutine0:
+   \   00000000   0x8801             LDRH     R1,[R0, #+0]
+   \   00000002   0xF041 0x0101      ORR      R1,R1,#0x1
+   \   00000006   0x8001             STRH     R1,[R0, #+0]
+   \   00000008   0x4770             BX       LR
+   1109          
+   1110          /*******************************************************************************
+   1111          * Function Name  : I2C_GetITStatus
+   1112          * Description    : Checks whether the specified I2C interrupt has occurred or not.
+   1113          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+   1114          *                  - I2C_IT: specifies the interrupt source to check. 
+   1115          *                    This parameter can be one of the following values:
+   1116          *                       - I2C_IT_SMBALERT: SMBus Alert flag
+   1117          *                       - I2C_IT_TIMEOUT: Timeout or Tlow error flag
+   1118          *                       - I2C_IT_PECERR: PEC error in reception flag
+   1119          *                       - I2C_IT_OVR: Overrun/Underrun flag (Slave mode)
+   1120          *                       - I2C_IT_AF: Acknowledge failure flag
+   1121          *                       - I2C_IT_ARLO: Arbitration lost flag (Master mode)
+   1122          *                       - I2C_IT_BERR: Bus error flag
+   1123          *                       - I2C_IT_TXE: Data register empty flag (Transmitter)
+   1124          *                       - I2C_IT_RXNE: Data register not empty (Receiver) flag
+   1125          *                       - I2C_IT_STOPF: Stop detection flag (Slave mode)
+   1126          *                       - I2C_IT_ADD10: 10-bit header sent flag (Master mode)
+   1127          *                       - I2C_IT_BTF: Byte transfer finished flag
+   1128          *                       - I2C_IT_ADDR: Address sent flag (Master mode) “ADSL”
+   1129          *                                        Address matched flag (Slave mode)”ENDAD”
+   1130          *                       - I2C_IT_SB: Start bit flag (Master mode)
+   1131          * Output         : None
+   1132          * Return         : The new state of I2C_IT (SET or RESET).
+   1133          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+   1134          ITStatus I2C_GetITStatus(I2C_TypeDef* I2Cx, u32 I2C_IT)
+   1135          {
+   1136            ITStatus bitstatus = RESET;
+   \                     I2C_GetITStatus:
+   \   00000000   0x2200             MOVS     R2,#+0
+   1137            u32 i2cstatus = 0;
+   1138            u32 flag1 = 0, flag2 = 0;
+   1139          
+   1140            /* Check the parameters */
+   1141            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+   1142            assert_param(IS_I2C_GET_IT(I2C_IT));
+   1143          
+   1144            /* Read the I2Cx status register */
+   1145            flag1 = I2Cx->SR1;
+   \   00000002   0x8A83             LDRH     R3,[R0, #+20]
+   1146            flag2 = I2Cx->SR2;
+   \   00000004   0x8B00             LDRH     R0,[R0, #+24]
+   1147            flag2 = (flag2 & FLAG_Mask) << 16;
+   1148          
+   1149            /* Get the I2C status value */
+   1150            i2cstatus = flag1 | flag2;
+   1151          
+   1152            /* Get bit[23:0] of the flag */
+   1153            I2C_IT &= FLAG_Mask;
+   1154          
+   1155            /* Check the status of the specified I2C flag */
+   1156            if ((i2cstatus & I2C_IT) != (u32)RESET)
+   \   00000006   0xEA43 0x4000      ORR      R0,R3,R0, LSL #+16
+   \   0000000A   0x4008             ANDS     R0,R1,R0
+   \   0000000C   0x0200             LSLS     R0,R0,#+8
+   \   0000000E   0xBF18             IT       NE 
+   \   00000010   0x2201             MOVNE    R2,#+1
+   1157            {
+   1158              /* I2C_IT is set */
+   1159              bitstatus = SET;
+   1160            }
+   1161            else
+   1162            {
+   1163              /* I2C_IT is reset */
+   1164              bitstatus = RESET;
+   1165            }
+   1166            /* Return the I2C_IT status */
+   1167            return  bitstatus;
+   \   00000012   0x4610             MOV      R0,R2
+   \   00000014   0x4770             BX       LR               ;; return
+   1168          }
+   1169          
+   1170          /*******************************************************************************
+   1171          * Function Name  : I2C_ClearITPendingBit
+   1172          * Description    : Clears the I2Cx’s interrupt pending bits.
+   1173          * Input          : - I2Cx: where x can be 1 or 2 to select the I2C peripheral.
+   1174          *                  - I2C_IT: specifies the interrupt pending bit to clear. 
+   1175          *                    This parameter can be one of the following values:
+   1176          *                       - I2C_IT_SMBALERT: SMBus Alert flag
+   1177          *                       - I2C_IT_TIMEOUT: Timeout or Tlow error flag
+   1178          *                       - I2C_IT_PECERR: PEC error in reception flag
+   1179          *                       - I2C_IT_OVR: Overrun/Underrun flag (Slave mode)
+   1180          *                       - I2C_IT_AF: Acknowledge failure flag
+   1181          *                       - I2C_IT_ARLO: Arbitration lost flag (Master mode)
+   1182          *                       - I2C_IT_BERR: Bus error flag
+   1183          *                       - I2C_IT_STOPF: Stop detection flag (Slave mode)
+   1184          *                       - I2C_IT_ADD10: 10-bit header sent flag (Master mode)
+   1185          *                       - I2C_IT_BTF: Byte transfer finished flag
+   1186          *                       - I2C_IT_ADDR: Address sent flag (Master mode) “ADSL”
+   1187          *                                        Address matched flag (Slave mode)”ENDAD”
+   1188          *                       - I2C_IT_SB: Start bit flag (Master mode)
+   1189          * Output         : None
+   1190          * Return         : None
+   1191          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+   1192          void I2C_ClearITPendingBit(I2C_TypeDef* I2Cx, u32 I2C_IT)
+   1193          {
+   1194            u32 flagpos = 0;
+   1195            u32 flagindex = 0;
+   1196          
+   1197            /* Check the parameters */
+   1198            assert_param(IS_I2C_ALL_PERIPH(I2Cx));
+   1199            assert_param(IS_I2C_CLEAR_IT(I2C_IT));
+   1200          
+   1201            /* Get the I2C flag position */
+   1202            flagpos = I2C_IT & FLAG_Mask;
+   1203          
+   1204            /* Get the I2C flag index */
+   1205            flagindex = I2C_IT >> 28;
+   \                     I2C_ClearITPendingBit:
+   \   00000000   0x0F0A             LSRS     R2,R1,#+28
+   1206          
+   1207            /* Clear the flag by writing 0 */
+   1208            if (flagindex == 1)
+   \   00000002   0x2A01             CMP      R2,#+1
+   \   00000004   0xD100             BNE.N    ??I2C_ClearITPendingBit_0
+   1209            {
+   1210              /* Clear the selected I2C flag */
+   1211              I2Cx->SR1 = (u16)~flagpos;
+   \   00000006   0x....             B.N      ?Subroutine1
+   1212            }
+   1213            /* Flags that need a read of the SR1 register to be cleared */
+   1214            else if (flagindex == 2)
+   \                     ??I2C_ClearITPendingBit_0:
+   \   00000008   0x2A02             CMP      R2,#+2
+   \   0000000A   0xD101             BNE.N    ??I2C_ClearITPendingBit_1
+   1215            {
+   1216              /* Read the SR1 register */
+   1217              (void)I2Cx->SR1;
+   \   0000000C   0x8A80             LDRH     R0,[R0, #+20]
+   \   0000000E   0x4770             BX       LR
+   1218            }
+   1219            /* Flags that need a read of SR1 and a write on CR1 registers to be cleared */
+   1220            else if (flagindex == 6)
+   \                     ??I2C_ClearITPendingBit_1:
+   \   00000010   0x2A06             CMP      R2,#+6
+   \   00000012   0x8A81             LDRH     R1,[R0, #+20]
+   \   00000014   0xD100             BNE.N    ??I2C_ClearITPendingBit_2
+   1221            {
+   1222              /* Read the SR1 register */
+   1223              (void)I2Cx->SR1;
+   1224          
+   1225              /* Write on the CR1 register */
+   1226              I2Cx->CR1 |= CR1_PE_Set;
+   \   00000016   0x....             B.N      ?Subroutine0
+   1227            }
+   1228            /* Flags that need a read of SR1 and SR2 registers to be cleared */
+   1229            else /*flagindex == 0xA*/
+   1230            {
+   1231              /* Read the SR1 register */
+   1232              (void)I2Cx->SR1;
+   1233          
+   1234              /* Read the SR2 register */
+   1235              (void)I2Cx->SR2;
+   \                     ??I2C_ClearITPendingBit_2:
+   \   00000018   0x8B00             LDRH     R0,[R0, #+24]
+   1236            }
+   1237          }
+   \   0000001A   0x4770             BX       LR               ;; return
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable1:
+   \   00000000   0x40005400         DC32     0x40005400
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable1_1:
+   \   00000000   0x40005800         DC32     0x40005800
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable1_2:
+   \   00000000   0x000F4240         DC32     0xf4240
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable1_3:
+   \   00000000   0x000186A1         DC32     0x186a1
+   1238          
+   1239          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+   .cstack Function
+   ------- --------
+        0  I2C_ARPCmd
+        0  I2C_AcknowledgeConfig
+        0  I2C_CalculatePEC
+        0  I2C_CheckEvent
+        0  I2C_ClearFlag
+        0  I2C_ClearITPendingBit
+        0  I2C_Cmd
+        0  I2C_DMACmd
+        0  I2C_DMALastTransferCmd
+        8  I2C_DeInit
+              0 -> RCC_APB1PeriphResetCmd
+              8 -> RCC_APB1PeriphResetCmd
+        0  I2C_DualAddressCmd
+        0  I2C_FastModeDutyCycleConfig
+        0  I2C_GeneralCallCmd
+        0  I2C_GenerateSTART
+        0  I2C_GenerateSTOP
+        0  I2C_GetFlagStatus
+        0  I2C_GetITStatus
+        0  I2C_GetLastEvent
+        0  I2C_GetPEC
+        0  I2C_ITConfig
+       40  I2C_Init
+             40 -> RCC_GetClocksFreq
+        0  I2C_OwnAddress2Config
+        0  I2C_PECPositionConfig
+        0  I2C_ReadRegister
+        0  I2C_ReceiveData
+        0  I2C_SMBusAlertConfig
+        0  I2C_Send7bitAddress
+        0  I2C_SendData
+        0  I2C_SoftwareResetCmd
+        0  I2C_StretchClockCmd
+        0  I2C_StructInit
+        0  I2C_TransmitPEC
+
+
+   Section sizes:
+
+   Bytes  Function/Label
+   -----  --------------
+       4  ??DataTable1
+       4  ??DataTable1_1
+       4  ??DataTable1_2
+       4  ??DataTable1_3
+      10  ?Subroutine0
+       6  ?Subroutine1
+      20  I2C_ARPCmd
+      20  I2C_AcknowledgeConfig
+      20  I2C_CalculatePEC
+      24  I2C_CheckEvent
+      28  I2C_ClearFlag
+      28  I2C_ClearITPendingBit
+      20  I2C_Cmd
+      20  I2C_DMACmd
+      20  I2C_DMALastTransferCmd
+      58  I2C_DeInit
+      20  I2C_DualAddressCmd
+      22  I2C_FastModeDutyCycleConfig
+      20  I2C_GeneralCallCmd
+      20  I2C_GenerateSTART
+      20  I2C_GenerateSTOP
+      22  I2C_GetFlagStatus
+      22  I2C_GetITStatus
+      14  I2C_GetLastEvent
+       6  I2C_GetPEC
+      16  I2C_ITConfig
+     174  I2C_Init
+      18  I2C_OwnAddress2Config
+      22  I2C_PECPositionConfig
+       4  I2C_ReadRegister
+       6  I2C_ReceiveData
+      22  I2C_SMBusAlertConfig
+      16  I2C_Send7bitAddress
+       4  I2C_SendData
+      18  I2C_SoftwareResetCmd
+      20  I2C_StretchClockCmd
+      30  I2C_StructInit
+      20  I2C_TransmitPEC
+
+ 
+ 826 bytes in section .text
+ 
+ 826 bytes of CODE memory
+
+Errors: none
+Warnings: none

@@ -1,0 +1,6 @@
+---- LCD_BASE Matches (1 in 1 files) ----
+Ili2302lcd.h (inc):33
+#define LCD_BASE        ((u32)(0x60000000 | 0x0C000000))
+#define LCD             ((LCD_TypeDef *) LCD_BASE)
+
+/* Private define ------------------------------------------------------------*/

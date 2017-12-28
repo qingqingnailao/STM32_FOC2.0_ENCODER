@@ -1,0 +1,340 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V6.40.1.53790/W32 for ARM     24/Feb/2014  19:26:47 #
+# Copyright 1999-2012 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  D:\stm32\STM32F10XFWLIB\src\stm32f10x_lib.c              #
+#    Command line =  D:\stm32\STM32F10XFWLIB\src\stm32f10x_lib.c -D           #
+#                    VECT_TAB_FLASH -lCN "D:\stm32\BLDC                       #
+#                    PMSM2\EWARM\Debug\List\" --diag_error Pe068,Pe069 -o     #
+#                    "D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\" --debug           #
+#                    --endian=little --cpu=Cortex-M3 --fpu=None               #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 6.4\arm\INC\c\DLib_Config_Normal.h" -I         #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\" -I "D:\stm32\BLDC        #
+#                    PMSM2\EWARM\..\..\STM32F10XFWLIB\inc\" -I                #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\inc\" -Oh                  #
+#                    --use_c++_inline --require_prototypes                    #
+#    List file    =  D:\stm32\BLDC PMSM2\EWARM\Debug\List\stm32f10x_lib.lst   #
+#    Object file  =  D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\stm32f10x_lib.o      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+D:\stm32\STM32F10XFWLIB\src\stm32f10x_lib.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : stm32f10x_lib.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.0
+      5          * Date               : 05/23/2008
+      6          * Description        : This file provides all peripherals pointers initialization.
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          * FOR MORE INFORMATION PLEASE CAREFULLY READ THE LICENSE AGREEMENT FILE LOCATED 
+     15          * IN THE ROOT DIRECTORY OF THIS FIRMWARE PACKAGE.
+     16          *******************************************************************************/
+     17          
+     18          #define EXT
+     19          
+     20          /* Includes ------------------------------------------------------------------*/
+     21          #include "stm32f10x_lib.h"
+     22          
+     23          /* Private typedef -----------------------------------------------------------*/
+     24          /* Private define ------------------------------------------------------------*/
+     25          /* Private macro -------------------------------------------------------------*/
+     26          /* Private variables ---------------------------------------------------------*/
+     27          /* Private function prototypes -----------------------------------------------*/
+     28          /* Private functions ---------------------------------------------------------*/
+     29          
+     30          #ifdef DEBUG
+     31          /*******************************************************************************
+     32          * Function Name  : debug
+     33          * Description    : This function initialize peripherals pointers.
+     34          * Input          : None
+     35          * Output         : None
+     36          * Return         : None
+     37          *******************************************************************************/
+     38          void debug(void)
+     39          {
+     40          
+     41          /************************************* ADC ************************************/
+     42          #ifdef _ADC1
+     43            ADC1 = (ADC_TypeDef *)  ADC1_BASE;
+     44          #endif /*_ADC1 */
+     45          
+     46          #ifdef _ADC2
+     47            ADC2 = (ADC_TypeDef *)  ADC2_BASE;
+     48          #endif /*_ADC2 */
+     49          
+     50          #ifdef _ADC3
+     51            ADC3 = (ADC_TypeDef *)  ADC3_BASE;
+     52          #endif /*_ADC3 */
+     53          
+     54          /************************************* BKP ************************************/
+     55          #ifdef _BKP
+     56            BKP = (BKP_TypeDef *)  BKP_BASE;
+     57          #endif /*_BKP */
+     58          
+     59          /************************************* CAN ************************************/
+     60          #ifdef _CAN
+     61            CAN = (CAN_TypeDef *)  CAN_BASE;
+     62          #endif /*_CAN */
+     63          
+     64          /************************************* CRC ************************************/
+     65          #ifdef _CRC
+     66            CRC = (CRC_TypeDef *)  CRC_BASE;
+     67          #endif /*_CRC */
+     68          
+     69          /************************************* DAC ************************************/
+     70          #ifdef _DAC
+     71            DAC = (DAC_TypeDef *)  DAC_BASE;
+     72          #endif /*_DAC */
+     73          
+     74          /************************************* DBGMCU**********************************/
+     75          #ifdef _DBGMCU
+     76            DBGMCU = (DBGMCU_TypeDef *)  DBGMCU_BASE;
+     77          #endif /*_DBGMCU */
+     78          
+     79          /************************************* DMA ************************************/
+     80          #ifdef _DMA
+     81            DMA1 = (DMA_TypeDef *)  DMA1_BASE;
+     82            DMA2 = (DMA_TypeDef *)  DMA2_BASE;
+     83          #endif /*_DMA */
+     84          
+     85          #ifdef _DMA1_Channel1
+     86            DMA1_Channel1 = (DMA_Channel_TypeDef *)  DMA1_Channel1_BASE;
+     87          #endif /*_DMA1_Channel1 */
+     88          
+     89          #ifdef _DMA1_Channel2
+     90            DMA1_Channel2 = (DMA_Channel_TypeDef *)  DMA1_Channel2_BASE;
+     91          #endif /*_DMA1_Channel2 */
+     92          
+     93          #ifdef _DMA1_Channel3
+     94            DMA1_Channel3 = (DMA_Channel_TypeDef *)  DMA1_Channel3_BASE;
+     95          #endif /*_DMA1_Channel3 */
+     96          
+     97          #ifdef _DMA1_Channel4
+     98            DMA1_Channel4 = (DMA_Channel_TypeDef *)  DMA1_Channel4_BASE;
+     99          #endif /*_DMA1_Channel4 */
+    100          
+    101          #ifdef _DMA1_Channel5
+    102            DMA1_Channel5 = (DMA_Channel_TypeDef *)  DMA1_Channel5_BASE;
+    103          #endif /*_DMA1_Channel5 */
+    104          
+    105          #ifdef _DMA1_Channel6
+    106            DMA1_Channel6 = (DMA_Channel_TypeDef *)  DMA1_Channel6_BASE;
+    107          #endif /*_DMA1_Channel6 */
+    108          
+    109          #ifdef _DMA1_Channel7
+    110            DMA1_Channel7 = (DMA_Channel_TypeDef *)  DMA1_Channel7_BASE;
+    111          #endif /*_DMA1_Channel7 */
+    112          
+    113          #ifdef _DMA2_Channel1
+    114            DMA2_Channel1 = (DMA_Channel_TypeDef *)  DMA2_Channel1_BASE;
+    115          #endif /*_DMA2_Channel1 */
+    116          
+    117          #ifdef _DMA2_Channel2
+    118            DMA2_Channel2 = (DMA_Channel_TypeDef *)  DMA2_Channel2_BASE;
+    119          #endif /*_DMA2_Channel2 */
+    120          
+    121          #ifdef _DMA2_Channel3
+    122            DMA2_Channel3 = (DMA_Channel_TypeDef *)  DMA2_Channel3_BASE;
+    123          #endif /*_DMA2_Channel3 */
+    124          
+    125          #ifdef _DMA2_Channel4
+    126            DMA2_Channel4 = (DMA_Channel_TypeDef *)  DMA2_Channel4_BASE;
+    127          #endif /*_DMA2_Channel4 */
+    128          
+    129          #ifdef _DMA2_Channel5
+    130            DMA2_Channel5 = (DMA_Channel_TypeDef *)  DMA2_Channel5_BASE;
+    131          #endif /*_DMA2_Channel5 */
+    132          
+    133          /************************************* EXTI ***********************************/
+    134          #ifdef _EXTI
+    135            EXTI = (EXTI_TypeDef *)  EXTI_BASE;
+    136          #endif /*_EXTI */
+    137          
+    138          /************************************* FLASH and Option Bytes *****************/
+    139          #ifdef _FLASH
+    140            FLASH = (FLASH_TypeDef *)  FLASH_R_BASE;
+    141            OB = (OB_TypeDef *)        OB_BASE;
+    142          #endif /*_FLASH */
+    143          
+    144          /************************************* FSMC ***********************************/
+    145          #ifdef _FSMC
+    146            FSMC_Bank1 = (FSMC_Bank1_TypeDef *)    FSMC_Bank1_R_BASE;
+    147            FSMC_Bank1E = (FSMC_Bank1E_TypeDef *)  FSMC_Bank1E_R_BASE;  
+    148            FSMC_Bank2 = (FSMC_Bank2_TypeDef *)    FSMC_Bank2_R_BASE; 
+    149            FSMC_Bank3 = (FSMC_Bank3_TypeDef *)    FSMC_Bank3_R_BASE;
+    150            FSMC_Bank4 = (FSMC_Bank4_TypeDef *)    FSMC_Bank4_R_BASE;
+    151          #endif /*_FSMC */
+    152          
+    153          /************************************* GPIO ***********************************/
+    154          #ifdef _GPIOA
+    155            GPIOA = (GPIO_TypeDef *)  GPIOA_BASE;
+    156          #endif /*_GPIOA */
+    157          
+    158          #ifdef _GPIOB
+    159            GPIOB = (GPIO_TypeDef *)  GPIOB_BASE;
+    160          #endif /*_GPIOB */
+    161          
+    162          #ifdef _GPIOC
+    163            GPIOC = (GPIO_TypeDef *)  GPIOC_BASE;
+    164          #endif /*_GPIOC */
+    165          
+    166          #ifdef _GPIOD
+    167            GPIOD = (GPIO_TypeDef *)  GPIOD_BASE;
+    168          #endif /*_GPIOD */
+    169          
+    170          #ifdef _GPIOE
+    171            GPIOE = (GPIO_TypeDef *)  GPIOE_BASE;
+    172          #endif /*_GPIOE */
+    173          
+    174          #ifdef _GPIOF
+    175            GPIOF = (GPIO_TypeDef *)  GPIOF_BASE;
+    176          #endif /*_GPIOF */
+    177          
+    178          #ifdef _GPIOG
+    179            GPIOG = (GPIO_TypeDef *)  GPIOG_BASE;
+    180          #endif /*_GPIOG */
+    181          
+    182          #ifdef _AFIO
+    183            AFIO = (AFIO_TypeDef *)  AFIO_BASE;
+    184          #endif /*_AFIO */
+    185          
+    186          /************************************* I2C ************************************/
+    187          #ifdef _I2C1
+    188            I2C1 = (I2C_TypeDef *)  I2C1_BASE;
+    189          #endif /*_I2C1 */
+    190          
+    191          #ifdef _I2C2
+    192            I2C2 = (I2C_TypeDef *)  I2C2_BASE;
+    193          #endif /*_I2C2 */
+    194          
+    195          /************************************* IWDG ***********************************/
+    196          #ifdef _IWDG
+    197            IWDG = (IWDG_TypeDef *) IWDG_BASE;
+    198          #endif /*_IWDG */
+    199          
+    200          /************************************* NVIC ***********************************/
+    201          #ifdef _NVIC
+    202            NVIC = (NVIC_TypeDef *)  NVIC_BASE;
+    203            SCB = (SCB_TypeDef *)  SCB_BASE;
+    204          #endif /*_NVIC */
+    205          
+    206          /************************************* PWR ************************************/
+    207          #ifdef _PWR
+    208            PWR = (PWR_TypeDef *)  PWR_BASE;
+    209          #endif /*_PWR */
+    210          
+    211          /************************************* RCC ************************************/
+    212          #ifdef _RCC
+    213            RCC = (RCC_TypeDef *)  RCC_BASE;
+    214          #endif /*_RCC */
+    215          
+    216          /************************************* RTC ************************************/
+    217          #ifdef _RTC
+    218            RTC = (RTC_TypeDef *)  RTC_BASE;
+    219          #endif /*_RTC */
+    220          
+    221          /************************************* SDIO ***********************************/
+    222          #ifdef _SDIO
+    223            SDIO = (SDIO_TypeDef *)  SDIO_BASE;
+    224          #endif /*_SDIO */
+    225          
+    226          /************************************* SPI ************************************/
+    227          #ifdef _SPI1
+    228            SPI1 = (SPI_TypeDef *)  SPI1_BASE;
+    229          #endif /*_SPI1 */
+    230          
+    231          #ifdef _SPI2
+    232            SPI2 = (SPI_TypeDef *)  SPI2_BASE;
+    233          #endif /*_SPI2 */
+    234          
+    235          #ifdef _SPI3
+    236            SPI3 = (SPI_TypeDef *)  SPI3_BASE;
+    237          #endif /*_SPI3 */
+    238          
+    239          /************************************* SysTick ********************************/
+    240          #ifdef _SysTick
+    241            SysTick = (SysTick_TypeDef *)  SysTick_BASE;
+    242          #endif /*_SysTick */
+    243          
+    244          /************************************* TIM ************************************/
+    245          #ifdef _TIM1
+    246            TIM1 = (TIM_TypeDef *)  TIM1_BASE;
+    247          #endif /*_TIM1 */
+    248          
+    249          #ifdef _TIM2
+    250            TIM2 = (TIM_TypeDef *)  TIM2_BASE;
+    251          #endif /*_TIM2 */
+    252          
+    253          #ifdef _TIM3
+    254            TIM3 = (TIM_TypeDef *)  TIM3_BASE;
+    255          #endif /*_TIM3 */
+    256          
+    257          #ifdef _TIM4
+    258            TIM4 = (TIM_TypeDef *)  TIM4_BASE;
+    259          #endif /*_TIM4 */
+    260          
+    261          #ifdef _TIM5
+    262            TIM5 = (TIM_TypeDef *)  TIM5_BASE;
+    263          #endif /*_TIM5 */
+    264          
+    265          #ifdef _TIM6
+    266            TIM6 = (TIM_TypeDef *)  TIM6_BASE;
+    267          #endif /*_TIM6 */
+    268          
+    269          #ifdef _TIM7
+    270            TIM7 = (TIM_TypeDef *)  TIM7_BASE;
+    271          #endif /*_TIM7 */
+    272          
+    273          #ifdef _TIM8
+    274            TIM8 = (TIM_TypeDef *)  TIM8_BASE;
+    275          #endif /*_TIM8 */
+    276          
+    277          /************************************* USART **********************************/
+    278          #ifdef _USART1
+    279            USART1 = (USART_TypeDef *) USART1_BASE;
+    280          #endif /*_USART1 */
+    281          
+    282          #ifdef _USART2
+    283            USART2 = (USART_TypeDef *) USART2_BASE;
+    284          #endif /*_USART2 */
+    285          
+    286          #ifdef _USART3
+    287            USART3 = (USART_TypeDef *) USART3_BASE;
+    288          #endif /*_USART3 */
+    289          
+    290          #ifdef _UART4
+    291            UART4 = (USART_TypeDef *) UART4_BASE;
+    292          #endif /*_UART4 */
+    293          
+    294          #ifdef _UART5
+    295            UART5 = (USART_TypeDef *) UART5_BASE;
+    296          #endif /*_UART5 */
+    297          
+    298          /************************************* WWDG ***********************************/
+    299          #ifdef _WWDG
+    300            WWDG = (WWDG_TypeDef *)  WWDG_BASE;
+    301          #endif /*_WWDG */
+    302          }
+    303          #endif  /* DEBUG*/
+    304          
+    305          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+
+ 
+
+ 
+
+
+Errors: none
+Warnings: none

@@ -1,0 +1,541 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V6.40.1.53790/W32 for ARM     24/Feb/2014  19:26:49 #
+# Copyright 1999-2012 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  D:\stm32\BLDC PMSM2\src\stm32f10x_svpwm_ics.c            #
+#    Command line =  "D:\stm32\BLDC PMSM2\src\stm32f10x_svpwm_ics.c" -D       #
+#                    VECT_TAB_FLASH -lCN "D:\stm32\BLDC                       #
+#                    PMSM2\EWARM\Debug\List\" --diag_error Pe068,Pe069 -o     #
+#                    "D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\" --debug           #
+#                    --endian=little --cpu=Cortex-M3 --fpu=None               #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 6.4\arm\INC\c\DLib_Config_Normal.h" -I         #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\" -I "D:\stm32\BLDC        #
+#                    PMSM2\EWARM\..\..\STM32F10XFWLIB\inc\" -I                #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\inc\" -Ohs                 #
+#                    --use_c++_inline --require_prototypes                    #
+#    List file    =  D:\stm32\BLDC PMSM2\EWARM\Debug\List\stm32f10x_svpwm_ics #
+#                    .lst                                                     #
+#    Object file  =  D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\stm32f10x_svpwm_ics. #
+#                    o                                                        #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+D:\stm32\BLDC PMSM2\src\stm32f10x_svpwm_ics.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : STM32x_svpwm_ics.c
+      3          * Author             : IMS Systems Lab
+      4          * Date First Issued  : 21/11/07
+      5          * Description        : ICS current reading and PWM generation module 
+      6          ********************************************************************************
+      7          * History:
+      8          * 21/11/07 v1.0
+      9          * 29/05/08 v2.0
+     10          * 09/07/08 v2.0.1
+     11          * 14/07/08 v2.0.2
+     12          * 17/07/08 v2.0.3
+     13          ********************************************************************************
+     14          * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+     15          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     16          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     17          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     18          * CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     19          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     20          *
+     21          * THIS SOURCE CODE IS PROTECTED BY A LICENSE.
+     22          * FOR MORE INFORMATION PLEASE CAREFULLY READ THE LICENSE AGREEMENT FILE LOCATED
+     23          * IN THE ROOT DIRECTORY OF THIS FIRMWARE PACKAGE.
+     24          *******************************************************************************/
+     25          
+     26          #include "STM32F10x_MCconf.h"
+     27          
+     28          #ifdef ICS_SENSORS
+     29          
+     30          /* Includes-------------------------------------------------------------------*/
+     31          #include "stm32f10x_lib.h"
+     32          #include "stm32f10x_svpwm_ics.h"
+     33          
+     34          /* Private typedef -----------------------------------------------------------*/
+     35          /* Private define ------------------------------------------------------------*/
+     36          
+     37          #define NB_CONVERSIONS 16
+     38          
+     39          #define SQRT_3		1.732051
+     40          #define T		(PWM_PERIOD * 4)
+     41          #define T_SQRT3         (u16)(T * SQRT_3)
+     42          
+     43          #define SECTOR_1	(u32)1
+     44          #define SECTOR_2	(u32)2
+     45          #define SECTOR_3	(u32)3
+     46          #define SECTOR_4	(u32)4
+     47          #define SECTOR_5	(u32)5
+     48          #define SECTOR_6	(u32)6
+     49          
+     50          #define PHASE_A_MSK       (u32)((u32)(PHASE_A_ADC_CHANNEL) << 10)
+     51          #define PHASE_B_MSK       (u32)((u32)(PHASE_B_ADC_CHANNEL) << 10)
+     52          
+     53          #define TEMP_FDBK_MSK     (u32)((u32)(TEMP_FDBK_CHANNEL) <<15)
+     54          #define BUS_VOLT_FDBK_MSK (u32)((u32)(BUS_VOLT_FDBK_CHANNEL) <<15)
+     55          #define SEQUENCE_LENGHT    0x00100000
+     56          
+     57          #define ADC_PRE_EMPTION_PRIORITY 1
+     58          #define ADC_SUB_PRIORITY 1
+     59          
+     60          #define BRK_PRE_EMPTION_PRIORITY 0
+     61          #define BRK_SUB_PRIORITY 1
+     62          
+     63          #define LOW_SIDE_POLARITY  TIM_OCIdleState_Reset
+     64          
+     65          #define ADC_RIGHT_ALIGNMENT 3
+     66          
+     67          /* Private macro -------------------------------------------------------------*/
+     68          /* Private variables ---------------------------------------------------------*/
+     69          static u16 hPhaseAOffset;
+     70          static u16 hPhaseBOffset;
+     71              
+     72          /* Private function prototypes -----------------------------------------------*/
+     73          
+     74          void SVPWM_IcsInjectedConvConfig(void);
+     75          
+     76          /*******************************************************************************
+     77          * Function Name  : SVPWM_IcsInit
+     78          * Description    : It initializes PWM and ADC peripherals
+     79          * Input          : None
+     80          * Output         : None
+     81          * Return         : None
+     82          *******************************************************************************/
+     83          void SVPWM_IcsInit(void)
+     84          { 
+     85            ADC_InitTypeDef ADC_InitStructure;
+     86            TIM_TimeBaseInitTypeDef TIM1_TimeBaseStructure;
+     87            TIM_OCInitTypeDef TIM1_OCInitStructure;
+     88            TIM_BDTRInitTypeDef TIM1_BDTRInitStructure;
+     89            NVIC_InitTypeDef NVIC_InitStructure;
+     90            GPIO_InitTypeDef GPIO_InitStructure;
+     91          
+     92            /* ADC1, ADC2, DMA, GPIO, TIM1 clocks enabling -----------------------------*/
+     93            
+     94            /* ADCCLK = PCLK2/6 */
+     95            RCC_ADCCLKConfig(RCC_PCLK2_Div6);
+     96          
+     97            /* Enable DMA clock */
+     98            RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+     99          
+    100            /* Enable ADC1 clock */
+    101            RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+    102          
+    103            /* Enable ADC2 clock */
+    104            RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC2, ENABLE);
+    105            
+    106            /* Enable GPIOA-GPIOE clock */
+    107            RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | 
+    108                     RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD |
+    109                                                            RCC_APB2Periph_GPIOE, ENABLE);
+    110             
+    111            /* Enable TIM1 clock */
+    112            RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
+    113            
+    114            /* ADC1, ADC2, PWM pins configurations -------------------------------------*/
+    115            GPIO_StructInit(&GPIO_InitStructure);
+    116            /****** Configure phase A ADC channel GPIO as analog input ****/
+    117            GPIO_InitStructure.GPIO_Pin = PHASE_A_GPIO_PIN;
+    118            GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    119            GPIO_Init(PHASE_A_GPIO_PORT, &GPIO_InitStructure);
+    120            /****** Configure phase B ADC channel GPIO as analog input ****/
+    121            GPIO_InitStructure.GPIO_Pin = PHASE_B_GPIO_PIN;
+    122            GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    123            GPIO_Init(PHASE_B_GPIO_PORT, &GPIO_InitStructure);
+    124            GPIO_StructInit(&GPIO_InitStructure);  
+    125            /****** Configure temperature reading ADC channel GPIO as analog input ****/
+    126            GPIO_InitStructure.GPIO_Pin = TEMP_FDBK_CHANNEL_GPIO_PIN;
+    127            GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    128            GPIO_Init(TEMP_FDBK_CHANNEL_GPIO_PORT, &GPIO_InitStructure);
+    129            /****** Configure bus voltage reading ADC channel GPIO as analog input ****/
+    130            GPIO_InitStructure.GPIO_Pin = BUS_VOLT_FDBK_CHANNEL_GPIO_PIN;
+    131            GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    132            GPIO_Init(BUS_VOLT_FDBK_CHANNEL_GPIO_PORT, &GPIO_InitStructure);
+    133              
+    134            /* TIM1 Peripheral Configuration -------------------------------------------*/
+    135            /* TIM1 Registers reset */
+    136            TIM_DeInit(TIM1);
+    137            TIM_TimeBaseStructInit(&TIM1_TimeBaseStructure);
+    138            /* Time Base configuration */
+    139            TIM1_TimeBaseStructure.TIM_Prescaler = PWM_PRSC;
+    140            TIM1_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_CenterAligned1;
+    141            TIM1_TimeBaseStructure.TIM_Period = PWM_PERIOD;
+    142            TIM1_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV2;
+    143            TIM1_TimeBaseStructure.TIM_RepetitionCounter = REP_RATE;
+    144            TIM_TimeBaseInit(TIM1, &TIM1_TimeBaseStructure);
+    145          
+    146            TIM_OCStructInit(&TIM1_OCInitStructure);
+    147            /* Channel 1, 2,3 and 4 Configuration in PWM mode */
+    148            TIM1_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1; 
+    149            TIM1_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable; 
+    150            TIM1_OCInitStructure.TIM_OutputNState = TIM_OutputNState_Enable;                  
+    151            TIM1_OCInitStructure.TIM_Pulse = 0x505; //dummy value
+    152            TIM1_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High; 
+    153            TIM1_OCInitStructure.TIM_OCNPolarity = TIM_OCNPolarity_High;         
+    154            TIM1_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Reset;
+    155            TIM1_OCInitStructure.TIM_OCNIdleState = LOW_SIDE_POLARITY;          
+    156            
+    157            TIM_OC1Init(TIM1, &TIM1_OCInitStructure); 
+    158          
+    159            TIM1_OCInitStructure.TIM_Pulse = 0x505; //dummy value
+    160            TIM_OC2Init(TIM1, &TIM1_OCInitStructure);
+    161          
+    162            TIM1_OCInitStructure.TIM_Pulse = 0x505; //dummy value
+    163            TIM_OC3Init(TIM1, &TIM1_OCInitStructure);
+    164            
+    165            /*Timer1 alternate function full remapping*/  
+    166            GPIO_PinRemapConfig(GPIO_FullRemap_TIM1,ENABLE);
+    167            
+    168            GPIO_StructInit(&GPIO_InitStructure);  
+    169          
+    170            /* GPIOE Configuration: Channel 1, 1N, 2, 2N, 3 and 3N Output */
+    171            GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | 
+    172                                          GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13;
+    173            GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+    174            GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    175            GPIO_Init(GPIOE, &GPIO_InitStructure); 
+    176            
+    177            /* Lock GPIOE Pin9 to Pin 13 */
+    178            GPIO_PinLockConfig(GPIOE, GPIO_Pin_9 | GPIO_Pin_11 | GPIO_Pin_13);
+    179            GPIO_StructInit(&GPIO_InitStructure);
+    180            
+    181            /* GPIOE Configuration: BKIN pin */   
+    182            GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
+    183            GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    184            GPIO_Init(GPIOE, &GPIO_InitStructure);
+    185          
+    186            /* Automatic Output enable, Break, dead time and lock configuration*/
+    187            TIM1_BDTRInitStructure.TIM_OSSRState = TIM_OSSRState_Enable;
+    188            TIM1_BDTRInitStructure.TIM_OSSIState = TIM_OSSIState_Enable;
+    189            TIM1_BDTRInitStructure.TIM_LOCKLevel = TIM_LOCKLevel_1; 
+    190            TIM1_BDTRInitStructure.TIM_DeadTime = DEADTIME;
+    191            TIM1_BDTRInitStructure.TIM_Break = TIM_Break_Enable;
+    192            TIM1_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_Low;
+    193            TIM1_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Disable;
+    194          
+    195            TIM_BDTRConfig(TIM1, &TIM1_BDTRInitStructure);
+    196          
+    197            TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update);
+    198            
+    199            TIM_ClearITPendingBit(TIM1, TIM_IT_Break);
+    200            TIM_ITConfig(TIM1, TIM_IT_Break, ENABLE);
+    201            
+    202            /* TIM1 counter enable */
+    203            TIM_Cmd(TIM1, ENABLE);
+    204            
+    205            /* ADC1 registers reset ----------------------------------------------------*/
+    206            ADC_DeInit(ADC1);
+    207            /* ADC2 registers reset ----------------------------------------------------*/
+    208            ADC_DeInit(ADC2);
+    209            
+    210            /* Enable ADC1 */
+    211            ADC_Cmd(ADC1, ENABLE);
+    212            /* Enable ADC2 */
+    213            ADC_Cmd(ADC2, ENABLE);
+    214            
+    215            /* ADC1 configuration ------------------------------------------------------*/
+    216            ADC_StructInit(&ADC_InitStructure);
+    217            ADC_InitStructure.ADC_Mode = ADC_Mode_InjecSimult;
+    218            ADC_InitStructure.ADC_ScanConvMode = ENABLE;
+    219            ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
+    220            ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+    221            ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
+    222            ADC_InitStructure.ADC_NbrOfChannel = 1;
+    223            ADC_Init(ADC1, &ADC_InitStructure);
+    224             
+    225            /* ADC2 Configuration ------------------------------------------------------*/
+    226            ADC_StructInit(&ADC_InitStructure);  
+    227            ADC_InitStructure.ADC_ScanConvMode = ENABLE;
+    228            ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
+    229            ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+    230            ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
+    231            ADC_InitStructure.ADC_NbrOfChannel = 1;
+    232            ADC_Init(ADC2, &ADC_InitStructure);
+    233            
+    234            // Start calibration of ADC1
+    235            ADC_StartCalibration(ADC1);
+    236            // Start calibration of ADC2
+    237            ADC_StartCalibration(ADC2);
+    238            
+    239            // Wait for the end of ADCs calibration 
+    240            while (ADC_GetCalibrationStatus(ADC1) & ADC_GetCalibrationStatus(ADC2))
+    241            {
+    242            }
+    243            ADC_InjectedSequencerLengthConfig(ADC1,2);
+    244            SVPWM_IcsCurrentReadingCalibration();
+    245              
+    246            /* ADC2 Injected conversions configuration */ 
+    247            ADC_InjectedSequencerLengthConfig(ADC2,2);
+    248            ADC_InjectedChannelConfig(ADC2, PHASE_B_ADC_CHANNEL, 1, 
+    249                                                                SAMPLING_TIME_CK);
+    250            ADC_InjectedChannelConfig(ADC2, TEMP_FDBK_CHANNEL, 2,
+    251                                                                SAMPLING_TIME_CK);
+    252            
+    253            ADC_ExternalTrigInjectedConvCmd(ADC2,ENABLE);
+    254            
+    255            /* Configure one bit for preemption priority */
+    256            NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+    257            
+    258            NVIC_StructInit(&NVIC_InitStructure);
+    259            /* Enable the ADC Interrupt */
+    260            NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQChannel;
+    261            NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = ADC_PRE_EMPTION_PRIORITY;
+    262            NVIC_InitStructure.NVIC_IRQChannelSubPriority = ADC_SUB_PRIORITY;
+    263            NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    264            NVIC_Init(&NVIC_InitStructure);
+    265              
+    266            /* Enable the TIM1 BRK Interrupt */
+    267            NVIC_InitStructure.NVIC_IRQChannel = TIM1_BRK_IRQChannel;
+    268            NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = BRK_PRE_EMPTION_PRIORITY;
+    269            NVIC_InitStructure.NVIC_IRQChannelSubPriority = BRK_SUB_PRIORITY;
+    270            NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    271            NVIC_Init(&NVIC_InitStructure);
+    272          
+    273          } 
+    274          
+    275          /*******************************************************************************
+    276          * Function Name  : SVPWM_IcsCurrentReadingCalibration
+    277          * Description    : Store zero current converted values for current reading 
+    278                             network offset compensation in case of Ics 
+    279          * Input          : None
+    280          * Output         : None
+    281          * Return         : None
+    282          *******************************************************************************/
+    283          
+    284          void SVPWM_IcsCurrentReadingCalibration(void)
+    285          {
+    286           static u8 bIndex;
+    287             
+    288            /* ADC1 Injected group of conversions end interrupt disabling */
+    289            ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
+    290            
+    291            hPhaseAOffset=0;
+    292            hPhaseBOffset=0;
+    293             
+    294            /* ADC1 Injected conversions trigger is given by software and enabled */ 
+    295            ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_None);  
+    296            ADC_ExternalTrigInjectedConvCmd(ADC1,ENABLE); 
+    297            
+    298            /* ADC1 Injected conversions configuration */   
+    299            ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1,SAMPLING_TIME_CK);
+    300            ADC_InjectedChannelConfig(ADC1, PHASE_B_ADC_CHANNEL,2,SAMPLING_TIME_CK);
+    301             
+    302            /* Clear the ADC1 JEOC pending flag */
+    303            ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);   
+    304            ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
+    305            
+    306            /* ADC Channel used for current reading are read 
+    307               in order to get zero currents ADC values*/ 
+    308            for(bIndex=NB_CONVERSIONS; bIndex !=0; bIndex--)
+    309            {
+    310              while(!ADC_GetFlagStatus(ADC1,ADC_FLAG_JEOC)) { }
+    311            
+    312              hPhaseAOffset += (ADC_GetInjectedConversionValue(ADC1,ADC_InjectedChannel_1)
+    313                                                                   >>ADC_RIGHT_ALIGNMENT);
+    314              hPhaseBOffset += (ADC_GetInjectedConversionValue(ADC1,ADC_InjectedChannel_2)
+    315                                                                   >>ADC_RIGHT_ALIGNMENT);  
+    316              /* Clear the ADC1 JEOC pending flag */
+    317              ADC_ClearFlag(ADC1, ADC_FLAG_JEOC); 	
+    318              ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
+    319            }
+    320            
+    321            SVPWM_IcsInjectedConvConfig();  
+    322          }
+    323          
+    324          
+    325          /*******************************************************************************
+    326          * Function Name  : SVPWM_IcsInjectedConvConfig
+    327          * Description    : This function configure ADC1 for ICS current 
+    328          *                  reading and temperature and voltage feedbcak after a 
+    329          *                  calibration of the utilized ADC Channels for current reading
+    330          * Input          : None
+    331          * Output         : None
+    332          * Return         : None
+    333          *******************************************************************************/
+    334          void SVPWM_IcsInjectedConvConfig(void)
+    335          {
+    336            /* ADC1 Injected conversions configuration */ 
+    337            ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL, 1, 
+    338                                                                SAMPLING_TIME_CK);
+    339            ADC_InjectedChannelConfig(ADC1, BUS_VOLT_FDBK_CHANNEL, 
+    340                                                             2, SAMPLING_TIME_CK);
+    341            
+    342            /* ADC1 Injected conversions trigger is TIM1 TRGO */ 
+    343            ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_T1_TRGO); 
+    344            
+    345            /* ADC1 Injected group of conversions end interrupt enabling */
+    346            ADC_ITConfig(ADC1, ADC_IT_JEOC, ENABLE);
+    347          }
+    348          
+    349          /*******************************************************************************
+    350          * Function Name  : SVPWM_IcsPhaseCurrentValues
+    351          * Description    : This function computes current values of Phase A and Phase B 
+    352          *                 in q1.15 format starting from values acquired from the A/D 
+    353          *                 Converter peripheral.
+    354          * Input          : None
+    355          * Output         : Stat_Curr_a_b
+    356          * Return         : None
+    357          *******************************************************************************/
+    358          Curr_Components SVPWM_IcsGetPhaseCurrentValues(void)
+    359          {
+    360            Curr_Components Local_Stator_Currents;
+    361            s32 wAux;
+    362          
+    363                
+    364           // Ia = (hPhaseAOffset)-(PHASE_A_ADC_CHANNEL vale)  
+    365            wAux = ((ADC1->JDR1)<<1)-(s32)(hPhaseAOffset);          
+    366           //Saturation of Ia 
+    367            if (wAux < S16_MIN)
+    368            {
+    369              Local_Stator_Currents.qI_Component1= S16_MIN;
+    370            }  
+    371            else  if (wAux > S16_MAX)
+    372                  { 
+    373                    Local_Stator_Currents.qI_Component1= S16_MAX;
+    374                  }
+    375                  else
+    376                  {
+    377                    Local_Stator_Currents.qI_Component1= wAux;
+    378                  }
+    379                               
+    380           // Ib = (hPhaseBOffset)-(PHASE_B_ADC_CHANNEL value)
+    381            wAux = ((ADC2->JDR1)<<1)-(s32)(hPhaseBOffset);
+    382           // Saturation of Ib
+    383            if (wAux < S16_MIN)
+    384            {
+    385              Local_Stator_Currents.qI_Component2= S16_MIN;
+    386            }  
+    387            else  if (wAux > S16_MAX)
+    388                  { 
+    389                    Local_Stator_Currents.qI_Component2= S16_MAX;
+    390                  }
+    391                  else
+    392                  {
+    393                    Local_Stator_Currents.qI_Component2= wAux;
+    394                  }
+    395            
+    396            return(Local_Stator_Currents); 
+    397          }
+    398          
+    399          /*******************************************************************************
+    400          * Function Name  : SVPWM_IcsCalcDutyCycles
+    401          * Description    : Computes duty cycle values corresponding to the input value
+    402          		   and configures 
+    403          * Input          : Stat_Volt_alfa_beta
+    404          * Output         : None
+    405          * Return         : None
+    406          *******************************************************************************/
+    407          
+    408          void SVPWM_IcsCalcDutyCycles (Volt_Components Stat_Volt_Input)
+    409          {
+    410             u8 bSector;
+    411             s32 wX, wY, wZ, wUAlpha, wUBeta;
+    412             u16  hTimePhA=0, hTimePhB=0, hTimePhC=0;
+    413              
+    414             wUAlpha = Stat_Volt_Input.qV_Component1 * T_SQRT3 ;//park逆变换,?
+    415             wUBeta = -(Stat_Volt_Input.qV_Component2 * T);
+    416          
+    417             wX = wUBeta;
+    418             wY = (wUBeta + wUAlpha)/2;//clark逆变换
+    419             wZ = (wUBeta - wUAlpha)/2;
+    420          
+    421            // Sector calculation from wX, wY, wZ
+    422             if (wY<0)
+    423             {
+    424                if (wZ<0)
+    425                {
+    426                  bSector = SECTOR_5;
+    427                }
+    428                else // wZ >= 0
+    429                  if (wX<=0)
+    430                  {
+    431                    bSector = SECTOR_4;
+    432                  }
+    433                  else // wX > 0
+    434                  {
+    435                    bSector = SECTOR_3;
+    436                  }
+    437             }
+    438             else // wY > 0
+    439             {
+    440               if (wZ>=0)
+    441               {
+    442                 bSector = SECTOR_2;
+    443               }
+    444               else // wZ < 0
+    445                 if (wX<=0)
+    446                 {  
+    447                   bSector = SECTOR_6;
+    448                 }
+    449                 else // wX > 0
+    450                 {
+    451                   bSector = SECTOR_1;
+    452                 }
+    453              }
+    454             
+    455             /* Duty cycles computation */
+    456            
+    457            switch(bSector)
+    458            {  
+    459              case SECTOR_1:  //时间区间是0-4-6-7-7-6-4-0
+    460              case SECTOR_4:	//时间区间是0-1-3-7-7-3-1-0
+    461                          hTimePhA = (T/8) + ((((T + wX) - wZ)/2)/131072);
+    462          		hTimePhB = hTimePhA + wZ/131072;
+    463          		hTimePhC = hTimePhB - wX/131072;                                       
+    464                          break;
+    465              case SECTOR_2:
+    466              case SECTOR_5:  
+    467                          hTimePhA = (T/8) + ((((T + wY) - wZ)/2)/131072);
+    468                  	hTimePhB = hTimePhA + wZ/131072;
+    469          		hTimePhC = hTimePhA - wY/131072;
+    470                          break;
+    471          
+    472              case SECTOR_3:
+    473              case SECTOR_6:
+    474                          hTimePhA = (T/8) + ((((T - wX) + wY)/2)/131072);
+    475          		hTimePhC = hTimePhA - wY/131072;
+    476          		hTimePhB = hTimePhC + wX/131072;
+    477                          break;
+    478              default:
+    479          		break;
+    480             }
+    481            
+    482            /* Load compare registers values */
+    483             
+    484            TIM1->CCR1 = hTimePhA;
+    485            TIM1->CCR2 = hTimePhB;
+    486            TIM1->CCR3 = hTimePhC;
+    487          }
+    488          
+    489          /*******************************************************************************
+    490          * Function Name  : SVPWMEOCEvent
+    491          * Description    :  Routine to be performed inside the end of conversion ISR
+    492          * Input           : None
+    493          * Output         : None
+    494          * Return         : None
+    495          *******************************************************************************/
+    496          u8 SVPWMEOCEvent(void)
+    497          {
+    498            // Store the Bus Voltage and temperature sampled values
+    499           // h_ADCTemp = ADC_GetInjectedConversionValue(ADC2,ADC_InjectedChannel_2);
+    500           // h_ADCBusvolt = ADC_GetInjectedConversionValue(ADC1,ADC_InjectedChannel_2);
+    501            return ((u8)(1));
+    502          }
+    503          #endif //ICS_SENSORS
+    504          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/  
+
+
+ 
+
+ 
+
+
+Errors: none
+Warnings: none

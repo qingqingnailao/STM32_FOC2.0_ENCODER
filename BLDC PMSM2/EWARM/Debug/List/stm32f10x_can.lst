@@ -1,0 +1,1735 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V6.40.1.53790/W32 for ARM     24/Feb/2014  19:26:44 #
+# Copyright 1999-2012 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  D:\stm32\STM32F10XFWLIB\src\stm32f10x_can.c              #
+#    Command line =  D:\stm32\STM32F10XFWLIB\src\stm32f10x_can.c -D           #
+#                    VECT_TAB_FLASH -lCN "D:\stm32\BLDC                       #
+#                    PMSM2\EWARM\Debug\List\" --diag_error Pe068,Pe069 -o     #
+#                    "D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\" --debug           #
+#                    --endian=little --cpu=Cortex-M3 --fpu=None               #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 6.4\arm\INC\c\DLib_Config_Normal.h" -I         #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\" -I "D:\stm32\BLDC        #
+#                    PMSM2\EWARM\..\..\STM32F10XFWLIB\inc\" -I                #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\inc\" -Oh                  #
+#                    --use_c++_inline --require_prototypes                    #
+#    List file    =  D:\stm32\BLDC PMSM2\EWARM\Debug\List\stm32f10x_can.lst   #
+#    Object file  =  D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\stm32f10x_can.o      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+D:\stm32\STM32F10XFWLIB\src\stm32f10x_can.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : stm32f10x_can.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.0
+      5          * Date               : 05/23/2008
+      6          * Description        : This file provides all the CAN firmware functions.
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          * FOR MORE INFORMATION PLEASE CAREFULLY READ THE LICENSE AGREEMENT FILE LOCATED 
+     15          * IN THE ROOT DIRECTORY OF THIS FIRMWARE PACKAGE.
+     16          *******************************************************************************/
+     17          
+     18          /* Includes ------------------------------------------------------------------*/
+     19          #include "stm32f10x_can.h"
+     20          #include "stm32f10x_rcc.h"
+     21          
+     22          /* Private typedef -----------------------------------------------------------*/
+     23          
+     24          /* Private define ------------------------------------------------------------*/
+     25          /* CAN Master Control Register bits */
+     26          #define CAN_MCR_INRQ     ((u32)0x00000001) /* Initialization request */
+     27          #define CAN_MCR_SLEEP    ((u32)0x00000002) /* Sleep mode request */
+     28          #define CAN_MCR_TXFP     ((u32)0x00000004) /* Transmit FIFO priority */
+     29          #define CAN_MCR_RFLM     ((u32)0x00000008) /* Receive FIFO locked mode */
+     30          #define CAN_MCR_NART     ((u32)0x00000010) /* No automatic retransmission */
+     31          #define CAN_MCR_AWUM     ((u32)0x00000020) /* Automatic wake up mode */
+     32          #define CAN_MCR_ABOM     ((u32)0x00000040) /* Automatic bus-off management */
+     33          #define CAN_MCR_TTCM     ((u32)0x00000080) /* time triggered communication */
+     34          
+     35          /* CAN Master Status Register bits */
+     36          #define CAN_MSR_INAK     ((u32)0x00000001)    /* Initialization acknowledge */
+     37          #define CAN_MSR_WKUI     ((u32)0x00000008)    /* Wake-up interrupt */
+     38          #define CAN_MSR_SLAKI    ((u32)0x00000010)    /* Sleep acknowledge interrupt */
+     39          
+     40          /* CAN Transmit Status Register bits */
+     41          #define CAN_TSR_RQCP0    ((u32)0x00000001)    /* Request completed mailbox0 */
+     42          #define CAN_TSR_TXOK0    ((u32)0x00000002)    /* Transmission OK of mailbox0 */
+     43          #define CAN_TSR_ABRQ0    ((u32)0x00000080)    /* Abort request for mailbox0 */
+     44          #define CAN_TSR_RQCP1    ((u32)0x00000100)    /* Request completed mailbox1 */
+     45          #define CAN_TSR_TXOK1    ((u32)0x00000200)    /* Transmission OK of mailbox1 */
+     46          #define CAN_TSR_ABRQ1    ((u32)0x00008000)    /* Abort request for mailbox1 */
+     47          #define CAN_TSR_RQCP2    ((u32)0x00010000)    /* Request completed mailbox2 */
+     48          #define CAN_TSR_TXOK2    ((u32)0x00020000)    /* Transmission OK of mailbox2 */
+     49          #define CAN_TSR_ABRQ2    ((u32)0x00800000)    /* Abort request for mailbox2 */
+     50          #define CAN_TSR_TME0     ((u32)0x04000000)    /* Transmit mailbox 0 empty */
+     51          #define CAN_TSR_TME1     ((u32)0x08000000)    /* Transmit mailbox 1 empty */
+     52          #define CAN_TSR_TME2     ((u32)0x10000000)    /* Transmit mailbox 2 empty */
+     53          
+     54          /* CAN Receive FIFO 0 Register bits */
+     55          #define CAN_RF0R_FULL0   ((u32)0x00000008)    /* FIFO 0 full */
+     56          #define CAN_RF0R_FOVR0   ((u32)0x00000010)    /* FIFO 0 overrun */
+     57          #define CAN_RF0R_RFOM0   ((u32)0x00000020)    /* Release FIFO 0 output mailbox */
+     58          
+     59          /* CAN Receive FIFO 1 Register bits */
+     60          #define CAN_RF1R_FULL1   ((u32)0x00000008)    /* FIFO 1 full */
+     61          #define CAN_RF1R_FOVR1   ((u32)0x00000010)    /* FIFO 1 overrun */
+     62          #define CAN_RF1R_RFOM1   ((u32)0x00000020)    /* Release FIFO 1 output mailbox */
+     63          
+     64          /* CAN Error Status Register bits */
+     65          #define CAN_ESR_EWGF     ((u32)0x00000001)    /* Error warning flag */
+     66          #define CAN_ESR_EPVF     ((u32)0x00000002)    /* Error passive flag */
+     67          #define CAN_ESR_BOFF     ((u32)0x00000004)    /* Bus-off flag */
+     68          
+     69          /* CAN Mailbox Transmit Request */
+     70          #define CAN_TMIDxR_TXRQ    ((u32)0x00000001) /* Transmit mailbox request */
+     71          
+     72          /* CAN Filter Master Register bits */
+     73          #define CAN_FMR_FINIT ((u32)0x00000001) /* Filter init mode */
+     74          
+     75          
+     76          /* Private macro -------------------------------------------------------------*/
+     77          /* Private variables ---------------------------------------------------------*/
+     78          /* Private function prototypes -----------------------------------------------*/
+     79          static ITStatus CheckITStatus(u32 CAN_Reg, u32 It_Bit);
+     80          
+     81          /* Private functions ---------------------------------------------------------*/
+     82          /*******************************************************************************
+     83          * Function Name  : CAN_DeInit
+     84          * Description    : Deinitializes the CAN peripheral registers to their default
+     85          *                  reset values.
+     86          * Input          : None.
+     87          * Output         : None.
+     88          * Return         : None.
+     89          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+     90          void CAN_DeInit(void)
+     91          {
+   \                     CAN_DeInit:
+   \   00000000   0xB580             PUSH     {R7,LR}
+     92            /* Enable CAN reset state */
+     93            RCC_APB1PeriphResetCmd(RCC_APB1Periph_CAN, ENABLE);
+   \   00000002   0x2101             MOVS     R1,#+1
+   \   00000004   0xF04F 0x7000      MOV      R0,#+33554432
+   \   00000008   0x.... 0x....      BL       RCC_APB1PeriphResetCmd
+     94            /* Release CAN from reset state */
+     95            RCC_APB1PeriphResetCmd(RCC_APB1Periph_CAN, DISABLE);
+   \   0000000C   0x2100             MOVS     R1,#+0
+   \   0000000E   0xF04F 0x7000      MOV      R0,#+33554432
+   \   00000012   0xE8BD 0x4004      POP      {R2,LR}
+   \   00000016   0x.... 0x....      B.W      RCC_APB1PeriphResetCmd
+     96          }
+     97          
+     98          /*******************************************************************************
+     99          * Function Name  : CAN_Init
+    100          * Description    : Initializes the CAN peripheral according to the specified
+    101          *                  parameters in the CAN_InitStruct.
+    102          * Input          : CAN_InitStruct: pointer to a CAN_InitTypeDef structure that
+    103                             contains the configuration information for the CAN peripheral.
+    104          * Output         : None.
+    105          * Return         : Constant indicates initialization succeed which will be 
+    106          *                  CANINITFAILED or CANINITOK.
+    107          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    108          u8 CAN_Init(CAN_InitTypeDef* CAN_InitStruct)
+    109          {
+    110            u8 InitStatus = 0;
+   \                     CAN_Init:
+   \   00000000   0x2100             MOVS     R1,#+0
+    111            u16 WaitAck;
+    112          
+    113            /* Check the parameters */
+    114            assert_param(IS_FUNCTIONAL_STATE(CAN_InitStruct->CAN_TTCM));
+    115            assert_param(IS_FUNCTIONAL_STATE(CAN_InitStruct->CAN_ABOM));
+    116            assert_param(IS_FUNCTIONAL_STATE(CAN_InitStruct->CAN_AWUM));
+    117            assert_param(IS_FUNCTIONAL_STATE(CAN_InitStruct->CAN_NART));
+    118            assert_param(IS_FUNCTIONAL_STATE(CAN_InitStruct->CAN_RFLM));
+    119            assert_param(IS_FUNCTIONAL_STATE(CAN_InitStruct->CAN_TXFP));
+    120            assert_param(IS_CAN_MODE(CAN_InitStruct->CAN_Mode));
+    121            assert_param(IS_CAN_SJW(CAN_InitStruct->CAN_SJW));
+    122            assert_param(IS_CAN_BS1(CAN_InitStruct->CAN_BS1));
+    123            assert_param(IS_CAN_BS2(CAN_InitStruct->CAN_BS2));
+    124            assert_param(IS_CAN_PRESCALER(CAN_InitStruct->CAN_Prescaler));
+    125          
+    126            /* Request initialisation */
+    127            CAN->MCR = CAN_MCR_INRQ;
+   \   00000002   0x.... 0x....      LDR.W    R2,??DataTable14  ;; 0x40006400
+   \   00000006   0x2301             MOVS     R3,#+1
+   \   00000008   0x6013             STR      R3,[R2, #+0]
+    128          
+    129            /* ...and check acknowledged */
+    130            if ((CAN->MSR & CAN_MSR_INAK) == 0)
+   \   0000000A   0x6853             LDR      R3,[R2, #+4]
+   \   0000000C   0x07DB             LSLS     R3,R3,#+31
+   \   0000000E   0xD54D             BPL.N    ??CAN_Init_0
+    131            {
+    132              InitStatus = CANINITFAILED;
+    133            }
+    134            else
+    135            {
+    136              /* Set the time triggered communication mode */
+    137              if (CAN_InitStruct->CAN_TTCM == ENABLE)
+   \   00000010   0x7801             LDRB     R1,[R0, #+0]
+   \   00000012   0x2901             CMP      R1,#+1
+   \   00000014   0x6811             LDR      R1,[R2, #+0]
+   \   00000016   0xBF0C             ITE      EQ 
+   \   00000018   0xF041 0x0180      ORREQ    R1,R1,#0x80
+   \   0000001C   0xF021 0x0180      BICNE    R1,R1,#0x80
+    138              {
+    139                CAN->MCR |= CAN_MCR_TTCM;
+    140              }
+    141              else
+    142              {
+    143                CAN->MCR &= ~CAN_MCR_TTCM;
+   \   00000020   0x6011             STR      R1,[R2, #+0]
+    144              }
+    145          
+    146              /* Set the automatic bus-off management */
+    147              if (CAN_InitStruct->CAN_ABOM == ENABLE)
+   \   00000022   0x7841             LDRB     R1,[R0, #+1]
+   \   00000024   0x2901             CMP      R1,#+1
+   \   00000026   0x6811             LDR      R1,[R2, #+0]
+   \   00000028   0xBF0C             ITE      EQ 
+   \   0000002A   0xF041 0x0140      ORREQ    R1,R1,#0x40
+   \   0000002E   0xF021 0x0140      BICNE    R1,R1,#0x40
+    148              {
+    149                CAN->MCR |= CAN_MCR_ABOM;
+    150              }
+    151              else
+    152              {
+    153                CAN->MCR &= ~CAN_MCR_ABOM;
+   \   00000032   0x6011             STR      R1,[R2, #+0]
+    154              }
+    155          
+    156              /* Set the automatic wake-up mode */
+    157              if (CAN_InitStruct->CAN_AWUM == ENABLE)
+   \   00000034   0x7881             LDRB     R1,[R0, #+2]
+   \   00000036   0x2901             CMP      R1,#+1
+   \   00000038   0x6811             LDR      R1,[R2, #+0]
+   \   0000003A   0xBF0C             ITE      EQ 
+   \   0000003C   0xF041 0x0120      ORREQ    R1,R1,#0x20
+   \   00000040   0xF021 0x0120      BICNE    R1,R1,#0x20
+    158              {
+    159                CAN->MCR |= CAN_MCR_AWUM;
+    160              }
+    161              else
+    162              {
+    163                CAN->MCR &= ~CAN_MCR_AWUM;
+   \   00000044   0x6011             STR      R1,[R2, #+0]
+    164              }
+    165          
+    166              /* Set the no automatic retransmission */
+    167              if (CAN_InitStruct->CAN_NART == ENABLE)
+   \   00000046   0x78C1             LDRB     R1,[R0, #+3]
+   \   00000048   0x2901             CMP      R1,#+1
+   \   0000004A   0x6811             LDR      R1,[R2, #+0]
+   \   0000004C   0xBF0C             ITE      EQ 
+   \   0000004E   0xF041 0x0110      ORREQ    R1,R1,#0x10
+   \   00000052   0xF021 0x0110      BICNE    R1,R1,#0x10
+    168              {
+    169                CAN->MCR |= CAN_MCR_NART;
+    170              }
+    171              else
+    172              {
+    173                CAN->MCR &= ~CAN_MCR_NART;
+   \   00000056   0x6011             STR      R1,[R2, #+0]
+    174              }
+    175          
+    176              /* Set the receive FIFO locked mode */
+    177              if (CAN_InitStruct->CAN_RFLM == ENABLE)
+   \   00000058   0x7901             LDRB     R1,[R0, #+4]
+   \   0000005A   0x2901             CMP      R1,#+1
+   \   0000005C   0x6811             LDR      R1,[R2, #+0]
+   \   0000005E   0xBF0C             ITE      EQ 
+   \   00000060   0xF041 0x0108      ORREQ    R1,R1,#0x8
+   \   00000064   0xF021 0x0108      BICNE    R1,R1,#0x8
+    178              {
+    179                CAN->MCR |= CAN_MCR_RFLM;
+    180              }
+    181              else
+    182              {
+    183                CAN->MCR &= ~CAN_MCR_RFLM;
+   \   00000068   0x6011             STR      R1,[R2, #+0]
+    184              }
+    185          
+    186              /* Set the transmit FIFO priority */
+    187              if (CAN_InitStruct->CAN_TXFP == ENABLE)
+   \   0000006A   0x7941             LDRB     R1,[R0, #+5]
+   \   0000006C   0x2901             CMP      R1,#+1
+   \   0000006E   0x6811             LDR      R1,[R2, #+0]
+   \   00000070   0xBF0C             ITE      EQ 
+   \   00000072   0xF041 0x0104      ORREQ    R1,R1,#0x4
+   \   00000076   0xF021 0x0104      BICNE    R1,R1,#0x4
+    188              {
+    189                CAN->MCR |= CAN_MCR_TXFP;
+    190              }
+    191              else
+    192              {
+    193                CAN->MCR &= ~CAN_MCR_TXFP;
+   \   0000007A   0x6011             STR      R1,[R2, #+0]
+    194              }
+    195          
+    196              /* Set the bit timing register */
+    197              CAN->BTR = (u32)((u32)CAN_InitStruct->CAN_Mode << 30) | ((u32)CAN_InitStruct->CAN_SJW << 24) |
+    198                         ((u32)CAN_InitStruct->CAN_BS1 << 16) | ((u32)CAN_InitStruct->CAN_BS2 << 20) |
+    199                         ((u32)CAN_InitStruct->CAN_Prescaler - 1);
+   \   0000007C   0x7981             LDRB     R1,[R0, #+6]
+   \   0000007E   0x79C3             LDRB     R3,[R0, #+7]
+   \   00000080   0x061B             LSLS     R3,R3,#+24
+   \   00000082   0xEA43 0x7181      ORR      R1,R3,R1, LSL #+30
+   \   00000086   0x7A03             LDRB     R3,[R0, #+8]
+   \   00000088   0xEA41 0x4103      ORR      R1,R1,R3, LSL #+16
+   \   0000008C   0x7A43             LDRB     R3,[R0, #+9]
+   \   0000008E   0xEA41 0x5103      ORR      R1,R1,R3, LSL #+20
+   \   00000092   0x8940             LDRH     R0,[R0, #+10]
+   \   00000094   0x1E40             SUBS     R0,R0,#+1
+   \   00000096   0x4308             ORRS     R0,R0,R1
+   \   00000098   0x61D0             STR      R0,[R2, #+28]
+    200          
+    201              InitStatus = CANINITOK;
+   \   0000009A   0x2101             MOVS     R1,#+1
+    202          
+    203              /* Request leave initialisation */
+    204              CAN->MCR &= ~CAN_MCR_INRQ;
+   \   0000009C   0x6810             LDR      R0,[R2, #+0]
+   \   0000009E   0x0840             LSRS     R0,R0,#+1
+   \   000000A0   0x0040             LSLS     R0,R0,#+1
+   \   000000A2   0x6010             STR      R0,[R2, #+0]
+    205          
+    206              /* Wait the acknowledge */
+    207              for(WaitAck = 0x400; WaitAck > 0x0; WaitAck--)
+    208              {
+    209              }
+    210              
+    211              /* ...and check acknowledged */
+    212              if ((CAN->MSR & CAN_MSR_INAK) == CAN_MSR_INAK)
+   \   000000A4   0x6850             LDR      R0,[R2, #+4]
+   \   000000A6   0x07C0             LSLS     R0,R0,#+31
+   \   000000A8   0xBF48             IT       MI 
+   \   000000AA   0x2100             MOVMI    R1,#+0
+    213              {
+    214                InitStatus = CANINITFAILED;
+    215              }
+    216            }
+    217          
+    218            /* At this step, return the status of initialization */
+    219            return InitStatus;
+   \                     ??CAN_Init_0:
+   \   000000AC   0x4608             MOV      R0,R1
+   \   000000AE   0x4770             BX       LR               ;; return
+    220          }
+    221          
+    222          /*******************************************************************************
+    223          * Function Name  : CAN_FilterInit
+    224          * Description    : Initializes the CAN peripheral according to the specified
+    225          *                  parameters in the CAN_FilterInitStruct.
+    226          * Input          : CAN_FilterInitStruct: pointer to a CAN_FilterInitTypeDef
+    227          *                  structure that contains the configuration information.
+    228          * Output         : None.
+    229          * Return         : None.
+    230          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    231          void CAN_FilterInit(CAN_FilterInitTypeDef* CAN_FilterInitStruct)
+    232          {
+   \                     CAN_FilterInit:
+   \   00000000   0xB470             PUSH     {R4-R6}
+    233            u16 FilterNumber_BitPos = 0;
+    234          
+    235            /* Check the parameters */
+    236            assert_param(IS_CAN_FILTER_NUMBER(CAN_FilterInitStruct->CAN_FilterNumber));
+    237            assert_param(IS_CAN_FILTER_MODE(CAN_FilterInitStruct->CAN_FilterMode));
+    238            assert_param(IS_CAN_FILTER_SCALE(CAN_FilterInitStruct->CAN_FilterScale));
+    239            assert_param(IS_CAN_FILTER_FIFO(CAN_FilterInitStruct->CAN_FilterFIFOAssignment));
+    240            assert_param(IS_FUNCTIONAL_STATE(CAN_FilterInitStruct->CAN_FilterActivation));
+    241          
+    242            FilterNumber_BitPos = 
+    243            (u16)((u16)0x0001 << ((u16)CAN_FilterInitStruct->CAN_FilterNumber));
+   \   00000002   0x2101             MOVS     R1,#+1
+   \   00000004   0xF990 0x2000      LDRSB    R2,[R0, #+0]
+   \   00000008   0x4091             LSLS     R1,R1,R2
+   \   0000000A   0xB289             UXTH     R1,R1
+    244          
+    245            /* Initialisation mode for the filter */
+    246            CAN->FMR |= CAN_FMR_FINIT;
+   \   0000000C   0x.... 0x....      LDR.W    R2,??DataTable14_1  ;; 0x40006600
+   \   00000010   0x6813             LDR      R3,[R2, #+0]
+   \   00000012   0xF043 0x0301      ORR      R3,R3,#0x1
+   \   00000016   0x6013             STR      R3,[R2, #+0]
+    247          
+    248            /* Filter Deactivation */
+    249            CAN->FA1R &= ~(u32)FilterNumber_BitPos;
+   \   00000018   0x43CB             MVNS     R3,R1
+   \   0000001A   0x69D4             LDR      R4,[R2, #+28]
+   \   0000001C   0x401C             ANDS     R4,R3,R4
+   \   0000001E   0x61D4             STR      R4,[R2, #+28]
+    250          
+    251            /* Filter Scale */
+    252            if (CAN_FilterInitStruct->CAN_FilterScale == CAN_FilterScale_16bit)
+   \   00000020   0x7884             LDRB     R4,[R0, #+2]
+   \   00000022   0xB99C             CBNZ.N   R4,??CAN_FilterInit_0
+    253            {
+    254              /* 16-bit scale for the filter */
+    255              CAN->FS1R &= ~(u32)FilterNumber_BitPos;
+   \   00000024   0x68D4             LDR      R4,[R2, #+12]
+   \   00000026   0x401C             ANDS     R4,R3,R4
+   \   00000028   0x60D4             STR      R4,[R2, #+12]
+    256          
+    257              /* First 16-bit identifier and First 16-bit mask */
+    258              /* Or First 16-bit identifier and Second 16-bit identifier */
+    259              CAN->sFilterRegister[CAN_FilterInitStruct->CAN_FilterNumber].FR1 = 
+    260              ((u32)((u32)0x0000FFFF & CAN_FilterInitStruct->CAN_FilterMaskIdLow) << 16) |
+    261                  ((u32)0x0000FFFF & CAN_FilterInitStruct->CAN_FilterIdLow);
+   \   0000002A   0x.... 0x....      LDR.W    R4,??DataTable14_2  ;; 0x40006640
+   \   0000002E   0x8945             LDRH     R5,[R0, #+10]
+   \   00000030   0x88C6             LDRH     R6,[R0, #+6]
+   \   00000032   0xEA46 0x4505      ORR      R5,R6,R5, LSL #+16
+   \   00000036   0x7806             LDRB     R6,[R0, #+0]
+   \   00000038   0xF844 0x5036      STR      R5,[R4, R6, LSL #+3]
+    262          
+    263              /* Second 16-bit identifier and Second 16-bit mask */
+    264              /* Or Third 16-bit identifier and Fourth 16-bit identifier */
+    265              CAN->sFilterRegister[CAN_FilterInitStruct->CAN_FilterNumber].FR2 = 
+    266              ((u32)((u32)0x0000FFFF & CAN_FilterInitStruct->CAN_FilterMaskIdHigh) << 16) |
+    267                  ((u32)0x0000FFFF & CAN_FilterInitStruct->CAN_FilterIdHigh);
+   \   0000003C   0x7805             LDRB     R5,[R0, #+0]
+   \   0000003E   0xEB04 0x04C5      ADD      R4,R4,R5, LSL #+3
+   \   00000042   0x8905             LDRH     R5,[R0, #+8]
+   \   00000044   0x8886             LDRH     R6,[R0, #+4]
+   \   00000046   0xEA46 0x4505      ORR      R5,R6,R5, LSL #+16
+   \   0000004A   0x6065             STR      R5,[R4, #+4]
+    268            }
+    269            if (CAN_FilterInitStruct->CAN_FilterScale == CAN_FilterScale_32bit)
+   \                     ??CAN_FilterInit_0:
+   \   0000004C   0x7884             LDRB     R4,[R0, #+2]
+   \   0000004E   0x2C01             CMP      R4,#+1
+   \   00000050   0xD113             BNE.N    ??CAN_FilterInit_1
+    270            {
+    271              /* 32-bit scale for the filter */
+    272              CAN->FS1R |= FilterNumber_BitPos;
+   \   00000052   0x68D4             LDR      R4,[R2, #+12]
+   \   00000054   0x430C             ORRS     R4,R1,R4
+   \   00000056   0x60D4             STR      R4,[R2, #+12]
+    273          
+    274              /* 32-bit identifier or First 32-bit identifier */
+    275              CAN->sFilterRegister[CAN_FilterInitStruct->CAN_FilterNumber].FR1 = 
+    276              ((u32)((u32)0x0000FFFF & CAN_FilterInitStruct->CAN_FilterIdHigh) << 16) |
+    277                  ((u32)0x0000FFFF & CAN_FilterInitStruct->CAN_FilterIdLow);
+   \   00000058   0x.... 0x....      LDR.W    R4,??DataTable14_2  ;; 0x40006640
+   \   0000005C   0x8885             LDRH     R5,[R0, #+4]
+   \   0000005E   0x88C6             LDRH     R6,[R0, #+6]
+   \   00000060   0xEA46 0x4505      ORR      R5,R6,R5, LSL #+16
+   \   00000064   0x7806             LDRB     R6,[R0, #+0]
+   \   00000066   0xF844 0x5036      STR      R5,[R4, R6, LSL #+3]
+    278          
+    279              /* 32-bit mask or Second 32-bit identifier */
+    280              CAN->sFilterRegister[CAN_FilterInitStruct->CAN_FilterNumber].FR2 = 
+    281              ((u32)((u32)0x0000FFFF & CAN_FilterInitStruct->CAN_FilterMaskIdHigh) << 16) |
+    282                  ((u32)0x0000FFFF & CAN_FilterInitStruct->CAN_FilterMaskIdLow);
+   \   0000006A   0x7805             LDRB     R5,[R0, #+0]
+   \   0000006C   0xEB04 0x04C5      ADD      R4,R4,R5, LSL #+3
+   \   00000070   0x8905             LDRH     R5,[R0, #+8]
+   \   00000072   0x8946             LDRH     R6,[R0, #+10]
+   \   00000074   0xEA46 0x4505      ORR      R5,R6,R5, LSL #+16
+   \   00000078   0x6065             STR      R5,[R4, #+4]
+    283          
+    284            }
+    285          
+    286            /* Filter Mode */
+    287            if (CAN_FilterInitStruct->CAN_FilterMode == CAN_FilterMode_IdMask)
+   \                     ??CAN_FilterInit_1:
+   \   0000007A   0x7844             LDRB     R4,[R0, #+1]
+   \   0000007C   0x2C00             CMP      R4,#+0
+   \   0000007E   0x6854             LDR      R4,[R2, #+4]
+   \   00000080   0xBF0C             ITE      EQ 
+   \   00000082   0x401C             ANDEQ    R4,R3,R4
+   \   00000084   0x430C             ORRNE    R4,R1,R4
+    288            {
+    289              /*Id/Mask mode for the filter*/
+    290              CAN->FM1R &= ~(u32)FilterNumber_BitPos;
+    291            }
+    292            else /* CAN_FilterInitStruct->CAN_FilterMode == CAN_FilterMode_IdList */
+    293            {
+    294              /*Identifier list mode for the filter*/
+    295              CAN->FM1R |= (u32)FilterNumber_BitPos;
+   \   00000086   0x6054             STR      R4,[R2, #+4]
+    296            }
+    297          
+    298            /* Filter FIFO assignment */
+    299            if (CAN_FilterInitStruct->CAN_FilterFIFOAssignment == CAN_FilterFIFO0)
+   \   00000088   0x8984             LDRH     R4,[R0, #+12]
+   \   0000008A   0xB914             CBNZ.N   R4,??CAN_FilterInit_2
+    300            {
+    301              /* FIFO 0 assignation for the filter */
+    302              CAN->FFA1R &= ~(u32)FilterNumber_BitPos;
+   \   0000008C   0x6954             LDR      R4,[R2, #+20]
+   \   0000008E   0x4023             ANDS     R3,R3,R4
+   \   00000090   0xE003             B.N      ??CAN_FilterInit_3
+    303            }
+    304            if (CAN_FilterInitStruct->CAN_FilterFIFOAssignment == CAN_FilterFIFO1)
+   \                     ??CAN_FilterInit_2:
+   \   00000092   0x2C01             CMP      R4,#+1
+   \   00000094   0xD102             BNE.N    ??CAN_FilterInit_4
+    305            {
+    306              /* FIFO 1 assignation for the filter */
+    307              CAN->FFA1R |= (u32)FilterNumber_BitPos;
+   \   00000096   0x6953             LDR      R3,[R2, #+20]
+   \   00000098   0x430B             ORRS     R3,R1,R3
+   \                     ??CAN_FilterInit_3:
+   \   0000009A   0x6153             STR      R3,[R2, #+20]
+    308            }
+    309            
+    310            /* Filter activation */
+    311            if (CAN_FilterInitStruct->CAN_FilterActivation == ENABLE)
+   \                     ??CAN_FilterInit_4:
+   \   0000009C   0x7B80             LDRB     R0,[R0, #+14]
+   \   0000009E   0x2801             CMP      R0,#+1
+   \   000000A0   0xD102             BNE.N    ??CAN_FilterInit_5
+    312            {
+    313              CAN->FA1R |= FilterNumber_BitPos;
+   \   000000A2   0x69D0             LDR      R0,[R2, #+28]
+   \   000000A4   0x4308             ORRS     R0,R1,R0
+   \   000000A6   0x61D0             STR      R0,[R2, #+28]
+    314            }
+    315          
+    316            /* Leave the initialisation mode for the filter */
+    317            CAN->FMR &= ~CAN_FMR_FINIT;
+   \                     ??CAN_FilterInit_5:
+   \   000000A8   0x6810             LDR      R0,[R2, #+0]
+   \   000000AA   0x0840             LSRS     R0,R0,#+1
+   \   000000AC   0x0040             LSLS     R0,R0,#+1
+   \   000000AE   0x6010             STR      R0,[R2, #+0]
+    318          }
+   \   000000B0   0xBC70             POP      {R4-R6}
+   \   000000B2   0x4770             BX       LR               ;; return
+    319          
+    320          /*******************************************************************************
+    321          * Function Name  : CAN_StructInit
+    322          * Description    : Fills each CAN_InitStruct member with its default value.
+    323          * Input          : CAN_InitStruct: pointer to a CAN_InitTypeDef structure which
+    324          *                  will be initialized.
+    325          * Output         : None.
+    326          * Return         : None.
+    327          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    328          void CAN_StructInit(CAN_InitTypeDef* CAN_InitStruct)
+    329          {
+    330            /* Reset CAN init structure parameters values */
+    331          
+    332            /* Initialize the time triggered communication mode */
+    333            CAN_InitStruct->CAN_TTCM = DISABLE;
+   \                     CAN_StructInit:
+   \   00000000   0x2100             MOVS     R1,#+0
+   \   00000002   0x7001             STRB     R1,[R0, #+0]
+    334          
+    335            /* Initialize the automatic bus-off management */
+    336            CAN_InitStruct->CAN_ABOM = DISABLE;
+   \   00000004   0x7041             STRB     R1,[R0, #+1]
+    337          
+    338            /* Initialize the automatic wake-up mode */
+    339            CAN_InitStruct->CAN_AWUM = DISABLE;
+   \   00000006   0x7081             STRB     R1,[R0, #+2]
+    340          
+    341            /* Initialize the no automatic retransmission */
+    342            CAN_InitStruct->CAN_NART = DISABLE;
+   \   00000008   0x70C1             STRB     R1,[R0, #+3]
+    343          
+    344            /* Initialize the receive FIFO locked mode */
+    345            CAN_InitStruct->CAN_RFLM = DISABLE;
+   \   0000000A   0x7101             STRB     R1,[R0, #+4]
+    346          
+    347            /* Initialize the transmit FIFO priority */
+    348            CAN_InitStruct->CAN_TXFP = DISABLE;
+   \   0000000C   0x7141             STRB     R1,[R0, #+5]
+    349          
+    350            /* Initialize the CAN_Mode member */
+    351            CAN_InitStruct->CAN_Mode = CAN_Mode_Normal;
+   \   0000000E   0x7181             STRB     R1,[R0, #+6]
+    352          
+    353            /* Initialize the CAN_SJW member */
+    354            CAN_InitStruct->CAN_SJW = CAN_SJW_1tq;
+   \   00000010   0x71C1             STRB     R1,[R0, #+7]
+    355          
+    356            /* Initialize the CAN_BS1 member */
+    357            CAN_InitStruct->CAN_BS1 = CAN_BS1_4tq;
+   \   00000012   0x2103             MOVS     R1,#+3
+   \   00000014   0x7201             STRB     R1,[R0, #+8]
+    358          
+    359            /* Initialize the CAN_BS2 member */
+    360            CAN_InitStruct->CAN_BS2 = CAN_BS2_3tq;
+   \   00000016   0x2102             MOVS     R1,#+2
+   \   00000018   0x7241             STRB     R1,[R0, #+9]
+    361          
+    362            /* Initialize the CAN_Prescaler member */
+    363            CAN_InitStruct->CAN_Prescaler = 1;
+   \   0000001A   0x2101             MOVS     R1,#+1
+   \   0000001C   0x8141             STRH     R1,[R0, #+10]
+    364          }
+   \   0000001E   0x4770             BX       LR               ;; return
+    365          
+    366          /*******************************************************************************
+    367          * Function Name  : CAN_ITConfig
+    368          * Description    : Enables or disables the specified CAN interrupts.
+    369          * Input          : - CAN_IT: specifies the CAN interrupt sources to be enabled or
+    370          *                    disabled.
+    371          *                    This parameter can be: CAN_IT_TME, CAN_IT_FMP0, CAN_IT_FF0,
+    372          *                                           CAN_IT_FOV0, CAN_IT_FMP1, CAN_IT_FF1,
+    373          *                                           CAN_IT_FOV1, CAN_IT_EWG, CAN_IT_EPV,
+    374          *                                           CAN_IT_LEC, CAN_IT_ERR, CAN_IT_WKU or
+    375          *                                           CAN_IT_SLK.
+    376          *                  - NewState: new state of the CAN interrupts.
+    377          *                    This parameter can be: ENABLE or DISABLE.
+    378          * Output         : None.
+    379          * Return         : None.
+    380          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    381          void CAN_ITConfig(u32 CAN_IT, FunctionalState NewState)
+    382          {
+    383            /* Check the parameters */
+    384            assert_param(IS_CAN_ITConfig(CAN_IT));
+    385            assert_param(IS_FUNCTIONAL_STATE(NewState));
+    386          
+    387            if (NewState != DISABLE)
+   \                     CAN_ITConfig:
+   \   00000000   0x.... 0x....      LDR.W    R2,??DataTable14_3  ;; 0x40006414
+   \   00000004   0x2900             CMP      R1,#+0
+   \   00000006   0x6811             LDR      R1,[R2, #+0]
+   \   00000008   0xBF14             ITE      NE 
+   \   0000000A   0x4308             ORRNE    R0,R0,R1
+   \   0000000C   0xEA21 0x0000      BICEQ    R0,R1,R0
+    388            {
+    389              /* Enable the selected CAN interrupt */
+    390              CAN->IER |= CAN_IT;
+    391            }
+    392            else
+    393            {
+    394              /* Disable the selected CAN interrupt */
+    395              CAN->IER &= ~CAN_IT;
+   \   00000010   0x6010             STR      R0,[R2, #+0]
+    396            }
+    397          }
+   \   00000012   0x4770             BX       LR               ;; return
+    398          
+    399          /*******************************************************************************
+    400          * Function Name  : CAN_Transmit
+    401          * Description    : Initiates the transmission of a message.
+    402          * Input          : TxMessage: pointer to a structure which contains CAN Id, CAN
+    403          *                  DLC and CAN datas.
+    404          * Output         : None.
+    405          * Return         : The number of the mailbox that is used for transmission
+    406          *                  or CAN_NO_MB if there is no empty mailbox.
+    407          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    408          u8 CAN_Transmit(CanTxMsg* TxMessage)
+    409          {
+   \                     CAN_Transmit:
+   \   00000000   0xB470             PUSH     {R4-R6}
+    410            u8 TransmitMailbox = 0;
+    411          
+    412            /* Check the parameters */
+    413            assert_param(IS_CAN_STDID(TxMessage->StdId));
+    414            assert_param(IS_CAN_EXTID(TxMessage->StdId));
+    415            assert_param(IS_CAN_IDTYPE(TxMessage->IDE));
+    416            assert_param(IS_CAN_RTR(TxMessage->RTR));
+    417            assert_param(IS_CAN_DLC(TxMessage->DLC));
+    418          
+    419            /* Select one empty transmit mailbox */
+    420            if ((CAN->TSR&CAN_TSR_TME0) == CAN_TSR_TME0)
+   \   00000002   0x.... 0x....      LDR.W    R1,??DataTable14_4  ;; 0x40006408
+   \   00000006   0x680A             LDR      R2,[R1, #+0]
+   \   00000008   0x0152             LSLS     R2,R2,#+5
+   \   0000000A   0xD511             BPL.N    ??CAN_Transmit_0
+    421            {
+    422              TransmitMailbox = 0;
+   \   0000000C   0x2100             MOVS     R1,#+0
+    423            }
+    424            else if ((CAN->TSR&CAN_TSR_TME1) == CAN_TSR_TME1)
+    425            {
+    426              TransmitMailbox = 1;
+    427            }
+    428            else if ((CAN->TSR&CAN_TSR_TME2) == CAN_TSR_TME2)
+    429            {
+    430              TransmitMailbox = 2;
+    431            }
+    432            else
+    433            {
+    434              TransmitMailbox = CAN_NO_MB;
+    435            }
+    436          
+    437            if (TransmitMailbox != CAN_NO_MB)
+    438            {
+    439              /* Set up the Id */
+    440              CAN->sTxMailBox[TransmitMailbox].TIR &= CAN_TMIDxR_TXRQ;
+   \                     ??CAN_Transmit_1:
+   \   0000000E   0x010A             LSLS     R2,R1,#+4
+   \   00000010   0x.... 0x....      LDR.W    R3,??DataTable14_5  ;; 0x40006580
+   \   00000014   0x58D4             LDR      R4,[R2, R3]
+   \   00000016   0xF004 0x0401      AND      R4,R4,#0x1
+   \   0000001A   0x50D4             STR      R4,[R2, R3]
+    441              if (TxMessage->IDE == CAN_ID_STD)
+   \   0000001C   0x7A04             LDRB     R4,[R0, #+8]
+   \   0000001E   0xB99C             CBNZ.N   R4,??CAN_Transmit_2
+    442              {
+    443                TxMessage->StdId &= (u32)0x000007FF;
+    444                TxMessage->StdId = TxMessage->StdId << 21;
+   \   00000020   0x6804             LDR      R4,[R0, #+0]
+   \   00000022   0x0564             LSLS     R4,R4,#+21
+   \   00000024   0x6004             STR      R4,[R0, #+0]
+    445                
+    446                CAN->sTxMailBox[TransmitMailbox].TIR |= (TxMessage->StdId | TxMessage->IDE |
+    447                                                         TxMessage->RTR);
+   \   00000026   0x58D5             LDR      R5,[R2, R3]
+   \   00000028   0x7A46             LDRB     R6,[R0, #+9]
+   \   0000002A   0x4334             ORRS     R4,R6,R4
+   \   0000002C   0x432C             ORRS     R4,R4,R5
+   \   0000002E   0xE013             B.N      ??CAN_Transmit_3
+    448              }
+   \                     ??CAN_Transmit_0:
+   \   00000030   0x680A             LDR      R2,[R1, #+0]
+   \   00000032   0x0112             LSLS     R2,R2,#+4
+   \   00000034   0xBF48             IT       MI 
+   \   00000036   0x2101             MOVMI    R1,#+1
+   \   00000038   0xD4E9             BMI.N    ??CAN_Transmit_1
+   \   0000003A   0x6809             LDR      R1,[R1, #+0]
+   \   0000003C   0x00C9             LSLS     R1,R1,#+3
+   \   0000003E   0xBF48             IT       MI 
+   \   00000040   0x2102             MOVMI    R1,#+2
+   \   00000042   0xD4E4             BMI.N    ??CAN_Transmit_1
+   \   00000044   0x2104             MOVS     R1,#+4
+   \   00000046   0xE02F             B.N      ??CAN_Transmit_4
+    449              else
+    450              {
+    451                TxMessage->ExtId &= (u32)0x1FFFFFFF;
+    452                TxMessage->ExtId <<= 3;
+   \                     ??CAN_Transmit_2:
+   \   00000048   0x6845             LDR      R5,[R0, #+4]
+   \   0000004A   0x00ED             LSLS     R5,R5,#+3
+   \   0000004C   0x6045             STR      R5,[R0, #+4]
+    453          
+    454                CAN->sTxMailBox[TransmitMailbox].TIR |= (TxMessage->ExtId | TxMessage->IDE | 
+    455                                                         TxMessage->RTR);
+   \   0000004E   0x58D6             LDR      R6,[R2, R3]
+   \   00000050   0x432C             ORRS     R4,R4,R5
+   \   00000052   0x7A45             LDRB     R5,[R0, #+9]
+   \   00000054   0x432C             ORRS     R4,R5,R4
+   \   00000056   0x4334             ORRS     R4,R4,R6
+   \                     ??CAN_Transmit_3:
+   \   00000058   0x50D4             STR      R4,[R2, R3]
+    456              }
+    457              
+    458              /* Set up the DLC */
+    459              TxMessage->DLC &= (u8)0x0000000F;
+   \   0000005A   0x7A84             LDRB     R4,[R0, #+10]
+   \   0000005C   0xF004 0x040F      AND      R4,R4,#0xF
+   \   00000060   0x7284             STRB     R4,[R0, #+10]
+    460              CAN->sTxMailBox[TransmitMailbox].TDTR &= (u32)0xFFFFFFF0;
+   \   00000062   0x18D4             ADDS     R4,R2,R3
+   \   00000064   0x6865             LDR      R5,[R4, #+4]
+   \   00000066   0x092D             LSRS     R5,R5,#+4
+   \   00000068   0x012D             LSLS     R5,R5,#+4
+   \   0000006A   0x6065             STR      R5,[R4, #+4]
+    461              CAN->sTxMailBox[TransmitMailbox].TDTR |= TxMessage->DLC;
+   \   0000006C   0x6865             LDR      R5,[R4, #+4]
+   \   0000006E   0x7A86             LDRB     R6,[R0, #+10]
+   \   00000070   0x4335             ORRS     R5,R6,R5
+   \   00000072   0x6065             STR      R5,[R4, #+4]
+    462          
+    463              /* Set up the data field */
+    464              CAN->sTxMailBox[TransmitMailbox].TDLR = (((u32)TxMessage->Data[3] << 24) | 
+    465                                                       ((u32)TxMessage->Data[2] << 16) |
+    466                                                       ((u32)TxMessage->Data[1] << 8) | 
+    467                                                       ((u32)TxMessage->Data[0]));
+   \   00000074   0x7B85             LDRB     R5,[R0, #+14]
+   \   00000076   0x7B46             LDRB     R6,[R0, #+13]
+   \   00000078   0x0436             LSLS     R6,R6,#+16
+   \   0000007A   0xEA46 0x6505      ORR      R5,R6,R5, LSL #+24
+   \   0000007E   0x7B06             LDRB     R6,[R0, #+12]
+   \   00000080   0xEA45 0x2506      ORR      R5,R5,R6, LSL #+8
+   \   00000084   0x7AC6             LDRB     R6,[R0, #+11]
+   \   00000086   0x4335             ORRS     R5,R6,R5
+   \   00000088   0x60A5             STR      R5,[R4, #+8]
+    468              CAN->sTxMailBox[TransmitMailbox].TDHR = (((u32)TxMessage->Data[7] << 24) | 
+    469                                                       ((u32)TxMessage->Data[6] << 16) |
+    470                                                       ((u32)TxMessage->Data[5] << 8) |
+    471                                                       ((u32)TxMessage->Data[4]));
+   \   0000008A   0x7C85             LDRB     R5,[R0, #+18]
+   \   0000008C   0x7C46             LDRB     R6,[R0, #+17]
+   \   0000008E   0x0436             LSLS     R6,R6,#+16
+   \   00000090   0xEA46 0x6505      ORR      R5,R6,R5, LSL #+24
+   \   00000094   0x7C06             LDRB     R6,[R0, #+16]
+   \   00000096   0xEA45 0x2506      ORR      R5,R5,R6, LSL #+8
+   \   0000009A   0x7BC0             LDRB     R0,[R0, #+15]
+   \   0000009C   0x4328             ORRS     R0,R0,R5
+   \   0000009E   0x60E0             STR      R0,[R4, #+12]
+    472          
+    473              /* Request transmission */
+    474              CAN->sTxMailBox[TransmitMailbox].TIR |= CAN_TMIDxR_TXRQ;
+   \   000000A0   0x58D0             LDR      R0,[R2, R3]
+   \   000000A2   0xF040 0x0001      ORR      R0,R0,#0x1
+   \   000000A6   0x50D0             STR      R0,[R2, R3]
+    475            }
+    476          
+    477            return TransmitMailbox;
+   \                     ??CAN_Transmit_4:
+   \   000000A8   0x4608             MOV      R0,R1
+   \   000000AA   0xBC70             POP      {R4-R6}
+   \   000000AC   0x4770             BX       LR               ;; return
+    478          }
+    479          
+    480          /*******************************************************************************
+    481          * Function Name  : CAN_TransmitStatus
+    482          * Description    : Checks the transmission of a message.
+    483          * Input          : TransmitMailbox: the number of the mailbox that is used for
+    484          *                  transmission.
+    485          * Output         : None.
+    486          * Return         : CANTXOK if the CAN driver transmits the message, CANTXFAILED
+    487          *                  in an other case.
+    488          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    489          u8 CAN_TransmitStatus(u8 TransmitMailbox)
+    490          {
+    491            /* RQCP, TXOK and TME bits */
+    492            u8 State = 0;
+   \                     CAN_TransmitStatus:
+   \   00000000   0x2100             MOVS     R1,#+0
+    493          
+    494            /* Check the parameters */
+    495            assert_param(IS_CAN_TRANSMITMAILBOX(TransmitMailbox));
+    496          
+    497            switch (TransmitMailbox)
+   \   00000002   0xB118             CBZ.N    R0,??CAN_TransmitStatus_0
+   \   00000004   0x2802             CMP      R0,#+2
+   \   00000006   0xD01A             BEQ.N    ??CAN_TransmitStatus_1
+   \   00000008   0xD30C             BCC.N    ??CAN_TransmitStatus_2
+   \   0000000A   0xE027             B.N      ??CAN_TransmitStatus_3
+    498            {
+    499              case (0): State |= (u8)((CAN->TSR & CAN_TSR_RQCP0) << 2);
+   \                     ??CAN_TransmitStatus_0:
+   \   0000000C   0x....             LDR.N    R0,??DataTable14_4  ;; 0x40006408
+   \   0000000E   0x6801             LDR      R1,[R0, #+0]
+    500                State |= (u8)((CAN->TSR & CAN_TSR_TXOK0) >> 0);
+   \   00000010   0x6802             LDR      R2,[R0, #+0]
+    501                State |= (u8)((CAN->TSR & CAN_TSR_TME0) >> 26);
+   \   00000012   0xF001 0x0101      AND      R1,R1,#0x1
+   \   00000016   0xF002 0x0202      AND      R2,R2,#0x2
+   \   0000001A   0xEA42 0x0181      ORR      R1,R2,R1, LSL #+2
+   \   0000001E   0x6800             LDR      R0,[R0, #+0]
+   \   00000020   0x0E80             LSRS     R0,R0,#+26
+   \   00000022   0xE018             B.N      ??CAN_TransmitStatus_4
+    502                break;
+    503              case (1): State |= (u8)((CAN->TSR & CAN_TSR_RQCP1) >> 6);
+   \                     ??CAN_TransmitStatus_2:
+   \   00000024   0x....             LDR.N    R0,??DataTable14_4  ;; 0x40006408
+   \   00000026   0x6801             LDR      R1,[R0, #+0]
+    504                State |= (u8)((CAN->TSR & CAN_TSR_TXOK1) >> 8);
+   \   00000028   0x6802             LDR      R2,[R0, #+0]
+    505                State |= (u8)((CAN->TSR & CAN_TSR_TME1) >> 27);
+   \   0000002A   0x0989             LSRS     R1,R1,#+6
+   \   0000002C   0xF001 0x0104      AND      R1,R1,#0x4
+   \   00000030   0x0A12             LSRS     R2,R2,#+8
+   \   00000032   0xF002 0x0202      AND      R2,R2,#0x2
+   \   00000036   0x4311             ORRS     R1,R2,R1
+   \   00000038   0x6800             LDR      R0,[R0, #+0]
+   \   0000003A   0x0EC0             LSRS     R0,R0,#+27
+   \   0000003C   0xE00B             B.N      ??CAN_TransmitStatus_4
+    506                break;
+    507              case (2): State |= (u8)((CAN->TSR & CAN_TSR_RQCP2) >> 14);
+   \                     ??CAN_TransmitStatus_1:
+   \   0000003E   0x....             LDR.N    R0,??DataTable14_4  ;; 0x40006408
+   \   00000040   0x6801             LDR      R1,[R0, #+0]
+    508                State |= (u8)((CAN->TSR & CAN_TSR_TXOK2) >> 16);
+   \   00000042   0x6802             LDR      R2,[R0, #+0]
+    509                State |= (u8)((CAN->TSR & CAN_TSR_TME2) >> 28);
+   \   00000044   0x0B89             LSRS     R1,R1,#+14
+   \   00000046   0xF001 0x0104      AND      R1,R1,#0x4
+   \   0000004A   0x0C12             LSRS     R2,R2,#+16
+   \   0000004C   0xF002 0x0202      AND      R2,R2,#0x2
+   \   00000050   0x4311             ORRS     R1,R2,R1
+   \   00000052   0x6800             LDR      R0,[R0, #+0]
+   \   00000054   0x0F00             LSRS     R0,R0,#+28
+   \                     ??CAN_TransmitStatus_4:
+   \   00000056   0xF000 0x0001      AND      R0,R0,#0x1
+   \   0000005A   0x4301             ORRS     R1,R0,R1
+    510                break;
+    511              default:
+    512                State = CANTXFAILED;
+    513                break;
+    514            }
+    515          
+    516            switch (State)
+   \                     ??CAN_TransmitStatus_3:
+   \   0000005C   0xB111             CBZ.N    R1,??CAN_TransmitStatus_5
+   \   0000005E   0x2907             CMP      R1,#+7
+   \   00000060   0xD002             BEQ.N    ??CAN_TransmitStatus_6
+   \   00000062   0xE003             B.N      ??CAN_TransmitStatus_7
+    517            {
+    518                /* transmit pending  */
+    519              case (0x0): State = CANTXPENDING;
+   \                     ??CAN_TransmitStatus_5:
+   \   00000064   0x2002             MOVS     R0,#+2
+    520                break;
+   \   00000066   0x4770             BX       LR
+    521                /* transmit failed  */
+    522              case (0x5): State = CANTXFAILED;
+    523                break;
+    524                /* transmit succedeed  */
+    525              case (0x7): State = CANTXOK;
+   \                     ??CAN_TransmitStatus_6:
+   \   00000068   0x2001             MOVS     R0,#+1
+    526                break;
+   \   0000006A   0x4770             BX       LR
+    527              default:
+    528                State = CANTXFAILED;
+   \                     ??CAN_TransmitStatus_7:
+   \   0000006C   0x2000             MOVS     R0,#+0
+    529                break;
+    530            }
+    531          
+    532            return State;
+   \   0000006E   0x4770             BX       LR               ;; return
+    533          }
+    534          
+    535          /*******************************************************************************
+    536          * Function Name  : CAN_CancelTransmit
+    537          * Description    : Cancels a transmit request.
+    538          * Input          : Mailbox number.
+    539          * Output         : None.
+    540          * Return         : None.
+    541          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    542          void CAN_CancelTransmit(u8 Mailbox)
+    543          {
+    544            /* Check the parameters */
+    545            assert_param(IS_CAN_TRANSMITMAILBOX(Mailbox));
+    546          
+    547            /* abort transmission */
+    548            switch (Mailbox)
+   \                     CAN_CancelTransmit:
+   \   00000000   0xB118             CBZ.N    R0,??CAN_CancelTransmit_0
+   \   00000002   0x2802             CMP      R0,#+2
+   \   00000004   0xD00B             BEQ.N    ??CAN_CancelTransmit_1
+   \   00000006   0xD305             BCC.N    ??CAN_CancelTransmit_2
+   \   00000008   0x4770             BX       LR
+    549            {
+    550              case (0): CAN->TSR |= CAN_TSR_ABRQ0;
+   \                     ??CAN_CancelTransmit_0:
+   \   0000000A   0x....             LDR.N    R0,??DataTable14_4  ;; 0x40006408
+   \   0000000C   0x6801             LDR      R1,[R0, #+0]
+   \   0000000E   0xF041 0x0180      ORR      R1,R1,#0x80
+   \   00000012   0xE008             B.N      ??CAN_CancelTransmit_3
+    551                break;
+    552              case (1): CAN->TSR |= CAN_TSR_ABRQ1;
+   \                     ??CAN_CancelTransmit_2:
+   \   00000014   0x....             LDR.N    R0,??DataTable14_4  ;; 0x40006408
+   \   00000016   0x6801             LDR      R1,[R0, #+0]
+   \   00000018   0xF441 0x4100      ORR      R1,R1,#0x8000
+   \   0000001C   0xE003             B.N      ??CAN_CancelTransmit_3
+    553                break;
+    554              case (2): CAN->TSR |= CAN_TSR_ABRQ2;
+   \                     ??CAN_CancelTransmit_1:
+   \   0000001E   0x....             LDR.N    R0,??DataTable14_4  ;; 0x40006408
+   \   00000020   0x6801             LDR      R1,[R0, #+0]
+   \   00000022   0xF441 0x0100      ORR      R1,R1,#0x800000
+   \                     ??CAN_CancelTransmit_3:
+   \   00000026   0x6001             STR      R1,[R0, #+0]
+    555                break;
+    556              default:
+    557                break;
+    558            }
+    559          }
+   \   00000028   0x4770             BX       LR               ;; return
+    560          
+    561          /*******************************************************************************
+    562          * Function Name  : CAN_FIFORelease
+    563          * Description    : Releases a FIFO.
+    564          * Input          : FIFONumber: FIFO to release, CAN_FIFO0 or CAN_FIFO1.
+    565          * Output         : None.
+    566          * Return         : None.
+    567          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    568          void CAN_FIFORelease(u8 FIFONumber)
+    569          {
+    570            /* Check the parameters */
+    571            assert_param(IS_CAN_FIFO(FIFONumber));
+    572          
+    573            /* Release FIFO0 */
+    574            if (FIFONumber == CAN_FIFO0)
+   \                     CAN_FIFORelease:
+   \   00000000   0x....             LDR.N    R1,??DataTable14_6  ;; 0x4000640c
+   \   00000002   0x2800             CMP      R0,#+0
+   \   00000004   0xBF07             ITTEE    EQ 
+   \   00000006   0x2020             MOVEQ    R0,#+32
+   \   00000008   0x6008             STREQ    R0,[R1, #+0]
+   \   0000000A   0x2020             MOVNE    R0,#+32
+   \   0000000C   0x6048             STRNE    R0,[R1, #+4]
+    575            {
+    576              CAN->RF0R = CAN_RF0R_RFOM0;
+   \   0000000E   0x4770             BX       LR
+    577            }
+    578            /* Release FIFO1 */
+    579            else /* FIFONumber == CAN_FIFO1 */
+    580            {
+    581              CAN->RF1R = CAN_RF1R_RFOM1;
+    582            }
+    583          }
+    584          
+    585          /*******************************************************************************
+    586          * Function Name  : CAN_MessagePending
+    587          * Description    : Returns the number of pending messages.
+    588          * Input          : FIFONumber: Receive FIFO number, CAN_FIFO0 or CAN_FIFO1.
+    589          * Output         : None.
+    590          * Return         : NbMessage which is the number of pending message.
+    591          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    592          u8 CAN_MessagePending(u8 FIFONumber)
+    593          {
+    594            u8 MessagePending=0;
+   \                     CAN_MessagePending:
+   \   00000000   0x2100             MOVS     R1,#+0
+    595          
+    596            /* Check the parameters */
+    597            assert_param(IS_CAN_FIFO(FIFONumber));
+    598          
+    599            if (FIFONumber == CAN_FIFO0)
+   \   00000002   0xB910             CBNZ.N   R0,??CAN_MessagePending_0
+    600            {
+    601              MessagePending = (u8)(CAN->RF0R&(u32)0x03);
+   \   00000004   0x....             LDR.N    R0,??DataTable14_6  ;; 0x4000640c
+   \   00000006   0x6800             LDR      R0,[R0, #+0]
+   \   00000008   0xE003             B.N      ??CAN_MessagePending_1
+    602            }
+    603            else if (FIFONumber == CAN_FIFO1)
+   \                     ??CAN_MessagePending_0:
+   \   0000000A   0x2801             CMP      R0,#+1
+   \   0000000C   0xD103             BNE.N    ??CAN_MessagePending_2
+    604            {
+    605              MessagePending = (u8)(CAN->RF1R&(u32)0x03);
+   \   0000000E   0x....             LDR.N    R0,??DataTable14_6  ;; 0x4000640c
+   \   00000010   0x6840             LDR      R0,[R0, #+4]
+   \                     ??CAN_MessagePending_1:
+   \   00000012   0xF000 0x0103      AND      R1,R0,#0x3
+    606            }
+    607            else
+    608            {
+    609              MessagePending = 0;
+    610            }
+    611            return MessagePending;
+   \                     ??CAN_MessagePending_2:
+   \   00000016   0x4608             MOV      R0,R1
+   \   00000018   0x4770             BX       LR               ;; return
+    612          }
+    613          
+    614          /*******************************************************************************
+    615          * Function Name  : CAN_Receive
+    616          * Description    : Receives a message.
+    617          * Input          : FIFONumber: Receive FIFO number, CAN_FIFO0 or CAN_FIFO1.
+    618          * Output         : RxMessage: pointer to a structure which contains CAN Id,
+    619          *                  CAN DLC, CAN datas and FMI number.
+    620          * Return         : None.
+    621          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    622          void CAN_Receive(u8 FIFONumber, CanRxMsg* RxMessage)
+    623          {
+   \                     CAN_Receive:
+   \   00000000   0xB410             PUSH     {R4}
+    624            /* Check the parameters */
+    625            assert_param(IS_CAN_FIFO(FIFONumber));
+    626          
+    627            /* Get the Id */
+    628            RxMessage->IDE = (u8)0x04 & CAN->sFIFOMailBox[FIFONumber].RIR;
+   \   00000002   0x0102             LSLS     R2,R0,#+4
+   \   00000004   0x....             LDR.N    R3,??DataTable14_7  ;; 0x400065b0
+   \   00000006   0x58D4             LDR      R4,[R2, R3]
+   \   00000008   0xF014 0x0404      ANDS     R4,R4,#0x4
+   \   0000000C   0x720C             STRB     R4,[R1, #+8]
+    629            if (RxMessage->IDE == CAN_ID_STD)
+   \   0000000E   0x58D4             LDR      R4,[R2, R3]
+   \   00000010   0xBF07             ITTEE    EQ 
+   \   00000012   0x0D64             LSREQ    R4,R4,#+21
+   \   00000014   0x600C             STREQ    R4,[R1, #+0]
+   \   00000016   0x08E4             LSRNE    R4,R4,#+3
+   \   00000018   0x604C             STRNE    R4,[R1, #+4]
+    630            {
+    631              RxMessage->StdId = (u32)0x000007FF & (CAN->sFIFOMailBox[FIFONumber].RIR >> 21);
+    632            }
+    633            else
+    634            {
+    635              RxMessage->ExtId = (u32)0x1FFFFFFF & (CAN->sFIFOMailBox[FIFONumber].RIR >> 3);
+    636            }
+    637            
+    638            RxMessage->RTR = (u8)0x02 & CAN->sFIFOMailBox[FIFONumber].RIR;
+   \   0000001A   0x58D4             LDR      R4,[R2, R3]
+   \   0000001C   0xF004 0x0402      AND      R4,R4,#0x2
+   \   00000020   0x724C             STRB     R4,[R1, #+9]
+    639          
+    640            /* Get the DLC */
+    641            RxMessage->DLC = (u8)0x0F & CAN->sFIFOMailBox[FIFONumber].RDTR;
+   \   00000022   0x18D2             ADDS     R2,R2,R3
+   \   00000024   0x6853             LDR      R3,[R2, #+4]
+   \   00000026   0xF003 0x030F      AND      R3,R3,#0xF
+   \   0000002A   0x728B             STRB     R3,[R1, #+10]
+    642          
+    643            /* Get the FMI */
+    644            RxMessage->FMI = (u8)0xFF & (CAN->sFIFOMailBox[FIFONumber].RDTR >> 8);
+   \   0000002C   0x6853             LDR      R3,[R2, #+4]
+   \   0000002E   0x0A1B             LSRS     R3,R3,#+8
+   \   00000030   0x74CB             STRB     R3,[R1, #+19]
+    645          
+    646            /* Get the data field */
+    647            RxMessage->Data[0] = (u8)0xFF & CAN->sFIFOMailBox[FIFONumber].RDLR;
+   \   00000032   0x6893             LDR      R3,[R2, #+8]
+   \   00000034   0x72CB             STRB     R3,[R1, #+11]
+    648            RxMessage->Data[1] = (u8)0xFF & (CAN->sFIFOMailBox[FIFONumber].RDLR >> 8);
+   \   00000036   0x6893             LDR      R3,[R2, #+8]
+   \   00000038   0x0A1B             LSRS     R3,R3,#+8
+   \   0000003A   0x730B             STRB     R3,[R1, #+12]
+    649            RxMessage->Data[2] = (u8)0xFF & (CAN->sFIFOMailBox[FIFONumber].RDLR >> 16);
+   \   0000003C   0x6893             LDR      R3,[R2, #+8]
+   \   0000003E   0x0C1B             LSRS     R3,R3,#+16
+   \   00000040   0x734B             STRB     R3,[R1, #+13]
+    650            RxMessage->Data[3] = (u8)0xFF & (CAN->sFIFOMailBox[FIFONumber].RDLR >> 24);
+   \   00000042   0x6893             LDR      R3,[R2, #+8]
+   \   00000044   0x0E1B             LSRS     R3,R3,#+24
+   \   00000046   0x738B             STRB     R3,[R1, #+14]
+    651          
+    652            RxMessage->Data[4] = (u8)0xFF & CAN->sFIFOMailBox[FIFONumber].RDHR;
+   \   00000048   0x68D3             LDR      R3,[R2, #+12]
+   \   0000004A   0x73CB             STRB     R3,[R1, #+15]
+    653            RxMessage->Data[5] = (u8)0xFF & (CAN->sFIFOMailBox[FIFONumber].RDHR >> 8);
+   \   0000004C   0x68D3             LDR      R3,[R2, #+12]
+   \   0000004E   0x0A1B             LSRS     R3,R3,#+8
+   \   00000050   0x740B             STRB     R3,[R1, #+16]
+    654            RxMessage->Data[6] = (u8)0xFF & (CAN->sFIFOMailBox[FIFONumber].RDHR >> 16);
+   \   00000052   0x68D3             LDR      R3,[R2, #+12]
+   \   00000054   0x0C1B             LSRS     R3,R3,#+16
+   \   00000056   0x744B             STRB     R3,[R1, #+17]
+    655            RxMessage->Data[7] = (u8)0xFF & (CAN->sFIFOMailBox[FIFONumber].RDHR >> 24);
+   \   00000058   0x68D2             LDR      R2,[R2, #+12]
+   \   0000005A   0x0E12             LSRS     R2,R2,#+24
+   \   0000005C   0x748A             STRB     R2,[R1, #+18]
+    656          
+    657            /* Release the FIFO */
+    658            CAN_FIFORelease(FIFONumber);
+   \   0000005E   0x....             LDR.N    R1,??DataTable14_6  ;; 0x4000640c
+   \   00000060   0x2800             CMP      R0,#+0
+   \   00000062   0xBF07             ITTEE    EQ 
+   \   00000064   0x2020             MOVEQ    R0,#+32
+   \   00000066   0x6008             STREQ    R0,[R1, #+0]
+   \   00000068   0x2020             MOVNE    R0,#+32
+   \   0000006A   0x6048             STRNE    R0,[R1, #+4]
+    659          }
+   \   0000006C   0xBC10             POP      {R4}
+   \   0000006E   0x4770             BX       LR               ;; return
+    660          
+    661          /*******************************************************************************
+    662          * Function Name  : CAN_Sleep
+    663          * Description    : Enters the low power mode.
+    664          * Input          : None.
+    665          * Output         : None.
+    666          * Return         : CANSLEEPOK if sleep entered, CANSLEEPFAILED in an other case.
+    667          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    668          u8 CAN_Sleep(void)
+    669          {
+    670            u8 SleepStatus = 0;
+    671          
+    672            /* Sleep mode entering request */
+    673            CAN->MCR |= CAN_MCR_SLEEP;
+   \                     CAN_Sleep:
+   \   00000000   0x....             LDR.N    R1,??DataTable14  ;; 0x40006400
+   \   00000002   0x6808             LDR      R0,[R1, #+0]
+   \   00000004   0xF040 0x0002      ORR      R0,R0,#0x2
+   \   00000008   0x6008             STR      R0,[R1, #+0]
+    674            SleepStatus = CANSLEEPOK;
+   \   0000000A   0x2001             MOVS     R0,#+1
+    675          
+    676            /* Sleep mode status */
+    677            if ((CAN->MCR&CAN_MCR_SLEEP) == 0)
+   \   0000000C   0x6809             LDR      R1,[R1, #+0]
+   \   0000000E   0x0789             LSLS     R1,R1,#+30
+   \   00000010   0xBF58             IT       PL 
+   \   00000012   0x2000             MOVPL    R0,#+0
+    678            {
+    679              /* Sleep mode not entered */
+    680              SleepStatus = CANSLEEPFAILED;
+    681            }
+    682          
+    683            /* At this step, sleep mode status */
+    684            return SleepStatus;
+   \   00000014   0x4770             BX       LR               ;; return
+    685          }
+    686          
+    687          /*******************************************************************************
+    688          * Function Name  : CAN_WakeUp
+    689          * Description    : Wakes the CAN up.
+    690          * Input          : None.
+    691          * Output         : None.
+    692          * Return         : CANWAKEUPOK if sleep mode left, CANWAKEUPFAILED in an other
+    693          *                  case.
+    694          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    695          u8 CAN_WakeUp(void)
+    696          {
+    697            u8 WakeUpStatus = 0;
+   \                     CAN_WakeUp:
+   \   00000000   0x2000             MOVS     R0,#+0
+    698          
+    699            /* Wake up request */
+    700            CAN->MCR &= ~CAN_MCR_SLEEP;
+   \   00000002   0x....             LDR.N    R1,??DataTable14  ;; 0x40006400
+   \   00000004   0x680A             LDR      R2,[R1, #+0]
+   \   00000006   0xF022 0x0202      BIC      R2,R2,#0x2
+   \   0000000A   0x600A             STR      R2,[R1, #+0]
+    701            WakeUpStatus = CANWAKEUPFAILED;
+    702          
+    703            /* Sleep mode status */
+    704            if ((CAN->MCR&CAN_MCR_SLEEP) == 0)
+   \   0000000C   0x6809             LDR      R1,[R1, #+0]
+   \   0000000E   0x0789             LSLS     R1,R1,#+30
+   \   00000010   0xBF58             IT       PL 
+   \   00000012   0x2001             MOVPL    R0,#+1
+    705            {
+    706              /* Sleep mode exited */
+    707              WakeUpStatus = CANWAKEUPOK;
+    708            }
+    709          
+    710            /* At this step, sleep mode status */
+    711            return WakeUpStatus;
+   \   00000014   0x4770             BX       LR               ;; return
+    712          }
+    713          
+    714          /*******************************************************************************
+    715          * Function Name  : CAN_GetFlagStatus
+    716          * Description    : Checks whether the specified CAN flag is set or not.
+    717          * Input          : CAN_FLAG: specifies the flag to check.
+    718          *                  This parameter can be: CAN_FLAG_EWG, CAN_FLAG_EPV or
+    719          *                                         CAN_FLAG_BOF.
+    720          * Output         : None.
+    721          * Return         : The new state of CAN_FLAG (SET or RESET).
+    722          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    723          FlagStatus CAN_GetFlagStatus(u32 CAN_FLAG)
+    724          {
+    725            FlagStatus bitstatus = RESET;
+   \                     CAN_GetFlagStatus:
+   \   00000000   0x2100             MOVS     R1,#+0
+    726          
+    727            /* Check the parameters */
+    728            assert_param(IS_CAN_FLAG(CAN_FLAG));
+    729          
+    730            /* Check the status of the specified CAN flag */
+    731            if ((CAN->ESR & CAN_FLAG) != (u32)RESET)
+   \   00000002   0x....             LDR.N    R2,??DataTable14_8  ;; 0x40006418
+   \   00000004   0x6812             LDR      R2,[R2, #+0]
+   \   00000006   0x4202             TST      R2,R0
+   \   00000008   0xBF18             IT       NE 
+   \   0000000A   0x2101             MOVNE    R1,#+1
+    732            {
+    733              /* CAN_FLAG is set */
+    734              bitstatus = SET;
+    735            }
+    736            else
+    737            {
+    738              /* CAN_FLAG is reset */
+    739              bitstatus = RESET;
+    740            }
+    741            /* Return the CAN_FLAG status */
+    742            return  bitstatus;
+   \   0000000C   0x4608             MOV      R0,R1
+   \   0000000E   0x4770             BX       LR               ;; return
+    743          }
+    744          
+    745          /*******************************************************************************
+    746          * Function Name  : CAN_ClearFlag
+    747          * Description    : Clears the CAN's pending flags.
+    748          * Input          : CAN_FLAG: specifies the flag to clear.
+    749          * Output         : None.
+    750          * Return         : None.
+    751          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    752          void CAN_ClearFlag(u32 CAN_FLAG)
+    753          {
+    754            /* Check the parameters */
+    755            assert_param(IS_CAN_FLAG(CAN_FLAG));
+    756          
+    757            /* Clear the selected CAN flags */
+    758            CAN->ESR &= ~CAN_FLAG;
+   \                     CAN_ClearFlag:
+   \   00000000   0x....             LDR.N    R1,??DataTable14_8  ;; 0x40006418
+   \   00000002   0x680A             LDR      R2,[R1, #+0]
+   \   00000004   0xEA22 0x0000      BIC      R0,R2,R0
+   \   00000008   0x6008             STR      R0,[R1, #+0]
+    759          }
+   \   0000000A   0x4770             BX       LR               ;; return
+    760          
+    761          /*******************************************************************************
+    762          * Function Name  : CAN_GetITStatus
+    763          * Description    : Checks whether the specified CAN interrupt has occurred or 
+    764          *                  not.
+    765          * Input          : CAN_IT: specifies the CAN interrupt source to check.
+    766          *                  This parameter can be: CAN_IT_RQCP0, CAN_IT_RQCP1, CAN_IT_RQCP2,
+    767          *                                         CAN_IT_FF0, CAN_IT_FOV0, CAN_IT_FF1,
+    768          *                                         CAN_IT_FOV1, CAN_IT_EWG, CAN_IT_EPV, 
+    769          *                                         CAN_IT_BOF, CAN_IT_WKU or CAN_IT_SLK.
+    770          * Output         : None.
+    771          * Return         : The new state of CAN_IT (SET or RESET).
+    772          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    773          ITStatus CAN_GetITStatus(u32 CAN_IT)
+    774          {
+   \                     CAN_GetITStatus:
+   \   00000000   0x4601             MOV      R1,R0
+    775            ITStatus pendingbitstatus = RESET;
+   \   00000002   0x2000             MOVS     R0,#+0
+    776          
+    777            /* Check the parameters */
+    778            assert_param(IS_CAN_ITStatus(CAN_IT));
+    779          
+    780            switch (CAN_IT)
+   \   00000004   0x2904             CMP      R1,#+4
+   \   00000006   0xD02A             BEQ.N    ??CAN_GetITStatus_0
+   \   00000008   0x2905             CMP      R1,#+5
+   \   0000000A   0xD019             BEQ.N    ??CAN_GetITStatus_1
+   \   0000000C   0x2906             CMP      R1,#+6
+   \   0000000E   0xD01C             BEQ.N    ??CAN_GetITStatus_2
+   \   00000010   0x2907             CMP      R1,#+7
+   \   00000012   0xD01F             BEQ.N    ??CAN_GetITStatus_3
+   \   00000014   0x2908             CMP      R1,#+8
+   \   00000016   0xD025             BEQ.N    ??CAN_GetITStatus_4
+   \   00000018   0x2920             CMP      R1,#+32
+   \   0000001A   0xD028             BEQ.N    ??CAN_GetITStatus_5
+   \   0000001C   0x2940             CMP      R1,#+64
+   \   0000001E   0xD029             BEQ.N    ??CAN_GetITStatus_6
+   \   00000020   0xF5B1 0x7F80      CMP      R1,#+256
+   \   00000024   0xD02B             BEQ.N    ??CAN_GetITStatus_7
+   \   00000026   0xF5B1 0x7F00      CMP      R1,#+512
+   \   0000002A   0xD02D             BEQ.N    ??CAN_GetITStatus_8
+   \   0000002C   0xF5B1 0x6F80      CMP      R1,#+1024
+   \   00000030   0xD02F             BEQ.N    ??CAN_GetITStatus_9
+   \   00000032   0xF5B1 0x3F80      CMP      R1,#+65536
+   \   00000036   0xD036             BEQ.N    ??CAN_GetITStatus_10
+   \   00000038   0xF5B1 0x3F00      CMP      R1,#+131072
+   \   0000003C   0xD02E             BEQ.N    ??CAN_GetITStatus_11
+   \   0000003E   0x4770             BX       LR
+    781            {
+    782              case CAN_IT_RQCP0:
+    783                pendingbitstatus = CheckITStatus(CAN->TSR, CAN_TSR_RQCP0);
+   \                     ??CAN_GetITStatus_1:
+   \   00000040   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000042   0x6841             LDR      R1,[R0, #+4]
+   \   00000044   0x2000             MOVS     R0,#+0
+   \   00000046   0x07C9             LSLS     R1,R1,#+31
+   \   00000048   0xE031             B.N      ??CAN_GetITStatus_12
+    784                break;
+    785              case CAN_IT_RQCP1:
+    786                pendingbitstatus = CheckITStatus(CAN->TSR, CAN_TSR_RQCP1);
+   \                     ??CAN_GetITStatus_2:
+   \   0000004A   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   0000004C   0x6841             LDR      R1,[R0, #+4]
+   \   0000004E   0x2000             MOVS     R0,#+0
+   \   00000050   0x05C9             LSLS     R1,R1,#+23
+   \   00000052   0xE02C             B.N      ??CAN_GetITStatus_12
+    787                break;
+    788              case CAN_IT_RQCP2:
+    789                pendingbitstatus = CheckITStatus(CAN->TSR, CAN_TSR_RQCP2);
+   \                     ??CAN_GetITStatus_3:
+   \   00000054   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000056   0x6841             LDR      R1,[R0, #+4]
+   \   00000058   0x2000             MOVS     R0,#+0
+   \   0000005A   0x03C9             LSLS     R1,R1,#+15
+   \   0000005C   0xE027             B.N      ??CAN_GetITStatus_12
+    790                break;
+    791              case CAN_IT_FF0:
+    792                pendingbitstatus = CheckITStatus(CAN->RF0R, CAN_RF0R_FULL0);
+   \                     ??CAN_GetITStatus_0:
+   \   0000005E   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000060   0x6881             LDR      R1,[R0, #+8]
+   \   00000062   0xE022             B.N      ??CAN_GetITStatus_13
+    793                break;
+    794              case CAN_IT_FOV0:
+    795                pendingbitstatus = CheckITStatus(CAN->RF0R, CAN_RF0R_FOVR0);
+   \                     ??CAN_GetITStatus_4:
+   \   00000064   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000066   0x6881             LDR      R1,[R0, #+8]
+   \   00000068   0x2000             MOVS     R0,#+0
+   \   0000006A   0x06C9             LSLS     R1,R1,#+27
+   \   0000006C   0xE01F             B.N      ??CAN_GetITStatus_12
+    796                break;
+    797              case CAN_IT_FF1:
+    798                pendingbitstatus = CheckITStatus(CAN->RF1R, CAN_RF1R_FULL1);
+   \                     ??CAN_GetITStatus_5:
+   \   0000006E   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000070   0x68C1             LDR      R1,[R0, #+12]
+   \   00000072   0xE01A             B.N      ??CAN_GetITStatus_13
+    799                break;
+    800              case CAN_IT_FOV1:
+    801                pendingbitstatus = CheckITStatus(CAN->RF1R, CAN_RF1R_FOVR1);
+   \                     ??CAN_GetITStatus_6:
+   \   00000074   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000076   0x68C1             LDR      R1,[R0, #+12]
+   \   00000078   0x2000             MOVS     R0,#+0
+   \   0000007A   0x06C9             LSLS     R1,R1,#+27
+   \   0000007C   0xE017             B.N      ??CAN_GetITStatus_12
+    802                break;
+    803              case CAN_IT_EWG:
+    804                pendingbitstatus = CheckITStatus(CAN->ESR, CAN_ESR_EWGF);
+   \                     ??CAN_GetITStatus_7:
+   \   0000007E   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000080   0x6941             LDR      R1,[R0, #+20]
+   \   00000082   0x2000             MOVS     R0,#+0
+   \   00000084   0x07C9             LSLS     R1,R1,#+31
+   \   00000086   0xE012             B.N      ??CAN_GetITStatus_12
+    805                break;
+    806              case CAN_IT_EPV:
+    807                pendingbitstatus = CheckITStatus(CAN->ESR, CAN_ESR_EPVF);
+   \                     ??CAN_GetITStatus_8:
+   \   00000088   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   0000008A   0x6941             LDR      R1,[R0, #+20]
+   \   0000008C   0x2000             MOVS     R0,#+0
+   \   0000008E   0x0789             LSLS     R1,R1,#+30
+   \   00000090   0xE00D             B.N      ??CAN_GetITStatus_12
+    808                break;
+    809              case CAN_IT_BOF:
+    810                pendingbitstatus = CheckITStatus(CAN->ESR, CAN_ESR_BOFF);
+   \                     ??CAN_GetITStatus_9:
+   \   00000092   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000094   0x6941             LDR      R1,[R0, #+20]
+   \   00000096   0x2000             MOVS     R0,#+0
+   \   00000098   0x0749             LSLS     R1,R1,#+29
+   \   0000009A   0xE008             B.N      ??CAN_GetITStatus_12
+    811                break;
+    812              case CAN_IT_SLK:
+    813                pendingbitstatus = CheckITStatus(CAN->MSR, CAN_MSR_SLAKI);
+   \                     ??CAN_GetITStatus_11:
+   \   0000009C   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   0000009E   0x6801             LDR      R1,[R0, #+0]
+   \   000000A0   0x2000             MOVS     R0,#+0
+   \   000000A2   0x06C9             LSLS     R1,R1,#+27
+   \   000000A4   0xE003             B.N      ??CAN_GetITStatus_12
+    814                break;
+    815              case CAN_IT_WKU:
+    816                pendingbitstatus = CheckITStatus(CAN->MSR, CAN_MSR_WKUI);
+   \                     ??CAN_GetITStatus_10:
+   \   000000A6   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   000000A8   0x6801             LDR      R1,[R0, #+0]
+   \                     ??CAN_GetITStatus_13:
+   \   000000AA   0x2000             MOVS     R0,#+0
+   \   000000AC   0x0709             LSLS     R1,R1,#+28
+   \                     ??CAN_GetITStatus_12:
+   \   000000AE   0xBF48             IT       MI 
+   \   000000B0   0x2001             MOVMI    R0,#+1
+    817                break;
+    818          
+    819              default :
+    820                pendingbitstatus = RESET;
+    821                break;
+    822            }
+    823          
+    824            /* Return the CAN_IT status */
+    825            return  pendingbitstatus;
+   \   000000B2   0x4770             BX       LR               ;; return
+    826          }
+    827          
+    828          /*******************************************************************************
+    829          * Function Name  : CAN_ClearITPendingBit
+    830          * Description    : Clears the CAN’s interrupt pending bits.
+    831          * Input          : CAN_IT: specifies the interrupt pending bit to clear.
+    832          * Output         : None.
+    833          * Return         : None.
+    834          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    835          void CAN_ClearITPendingBit(u32 CAN_IT)
+    836          {
+    837            /* Check the parameters */
+    838            assert_param(IS_CAN_ITStatus(CAN_IT));
+    839          
+    840            switch (CAN_IT)
+   \                     CAN_ClearITPendingBit:
+   \   00000000   0x2804             CMP      R0,#+4
+   \   00000002   0xD027             BEQ.N    ??CAN_ClearITPendingBit_0
+   \   00000004   0x2805             CMP      R0,#+5
+   \   00000006   0xD019             BEQ.N    ??CAN_ClearITPendingBit_1
+   \   00000008   0x2806             CMP      R0,#+6
+   \   0000000A   0xD01A             BEQ.N    ??CAN_ClearITPendingBit_2
+   \   0000000C   0x2807             CMP      R0,#+7
+   \   0000000E   0xD01C             BEQ.N    ??CAN_ClearITPendingBit_3
+   \   00000010   0x2808             CMP      R0,#+8
+   \   00000012   0xD022             BEQ.N    ??CAN_ClearITPendingBit_4
+   \   00000014   0x2820             CMP      R0,#+32
+   \   00000016   0xD024             BEQ.N    ??CAN_ClearITPendingBit_5
+   \   00000018   0x2840             CMP      R0,#+64
+   \   0000001A   0xD025             BEQ.N    ??CAN_ClearITPendingBit_6
+   \   0000001C   0xF5B0 0x7F80      CMP      R0,#+256
+   \   00000020   0xD026             BEQ.N    ??CAN_ClearITPendingBit_7
+   \   00000022   0xF5B0 0x7F00      CMP      R0,#+512
+   \   00000026   0xD028             BEQ.N    ??CAN_ClearITPendingBit_8
+   \   00000028   0xF5B0 0x6F80      CMP      R0,#+1024
+   \   0000002C   0xD02A             BEQ.N    ??CAN_ClearITPendingBit_9
+   \   0000002E   0xF5B0 0x3F80      CMP      R0,#+65536
+   \   00000032   0xD02D             BEQ.N    ??CAN_ClearITPendingBit_10
+   \   00000034   0xF5B0 0x3F00      CMP      R0,#+131072
+   \   00000038   0xD02D             BEQ.N    ??CAN_ClearITPendingBit_11
+   \   0000003A   0x4770             BX       LR
+    841            {
+    842              case CAN_IT_RQCP0:
+    843                CAN->TSR = CAN_TSR_RQCP0; /* rc_w1*/
+   \                     ??CAN_ClearITPendingBit_1:
+   \   0000003C   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   0000003E   0x2101             MOVS     R1,#+1
+   \   00000040   0xE006             B.N      ??CAN_ClearITPendingBit_12
+    844                break;
+    845              case CAN_IT_RQCP1:
+    846                CAN->TSR = CAN_TSR_RQCP1; /* rc_w1*/
+   \                     ??CAN_ClearITPendingBit_2:
+   \   00000042   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000044   0xF44F 0x7180      MOV      R1,#+256
+   \   00000048   0xE002             B.N      ??CAN_ClearITPendingBit_12
+    847                break;
+    848              case CAN_IT_RQCP2:
+    849                CAN->TSR = CAN_TSR_RQCP2; /* rc_w1*/
+   \                     ??CAN_ClearITPendingBit_3:
+   \   0000004A   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   0000004C   0xF44F 0x3180      MOV      R1,#+65536
+   \                     ??CAN_ClearITPendingBit_12:
+   \   00000050   0x6041             STR      R1,[R0, #+4]
+    850                break;
+   \   00000052   0x4770             BX       LR
+    851              case CAN_IT_FF0:
+    852                CAN->RF0R = CAN_RF0R_FULL0; /* rc_w1*/
+   \                     ??CAN_ClearITPendingBit_0:
+   \   00000054   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000056   0x2108             MOVS     R1,#+8
+   \   00000058   0xE001             B.N      ??CAN_ClearITPendingBit_13
+    853                break;
+    854              case CAN_IT_FOV0:
+    855                CAN->RF0R = CAN_RF0R_FOVR0; /* rc_w1*/
+   \                     ??CAN_ClearITPendingBit_4:
+   \   0000005A   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   0000005C   0x2110             MOVS     R1,#+16
+   \                     ??CAN_ClearITPendingBit_13:
+   \   0000005E   0x6081             STR      R1,[R0, #+8]
+    856                break;
+   \   00000060   0x4770             BX       LR
+    857              case CAN_IT_FF1:
+    858                CAN->RF1R = CAN_RF1R_FULL1; /* rc_w1*/
+   \                     ??CAN_ClearITPendingBit_5:
+   \   00000062   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000064   0x2108             MOVS     R1,#+8
+   \   00000066   0xE001             B.N      ??CAN_ClearITPendingBit_14
+    859                break;
+    860              case CAN_IT_FOV1:
+    861                CAN->RF1R = CAN_RF1R_FOVR1; /* rc_w1*/
+   \                     ??CAN_ClearITPendingBit_6:
+   \   00000068   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   0000006A   0x2110             MOVS     R1,#+16
+   \                     ??CAN_ClearITPendingBit_14:
+   \   0000006C   0x60C1             STR      R1,[R0, #+12]
+    862                break;
+   \   0000006E   0x4770             BX       LR
+    863              case CAN_IT_EWG:
+    864                CAN->ESR &= ~ CAN_ESR_EWGF; /* rw */
+   \                     ??CAN_ClearITPendingBit_7:
+   \   00000070   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000072   0x6941             LDR      R1,[R0, #+20]
+   \   00000074   0x0849             LSRS     R1,R1,#+1
+   \   00000076   0x0049             LSLS     R1,R1,#+1
+   \   00000078   0xE008             B.N      ??CAN_ClearITPendingBit_15
+    865                break;
+    866              case CAN_IT_EPV:
+    867                CAN->ESR &= ~ CAN_ESR_EPVF; /* rw */
+   \                     ??CAN_ClearITPendingBit_8:
+   \   0000007A   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   0000007C   0x6941             LDR      R1,[R0, #+20]
+   \   0000007E   0xF021 0x0102      BIC      R1,R1,#0x2
+   \   00000082   0xE003             B.N      ??CAN_ClearITPendingBit_15
+    868                break;
+    869              case CAN_IT_BOF:
+    870                CAN->ESR &= ~ CAN_ESR_BOFF; /* rw */
+   \                     ??CAN_ClearITPendingBit_9:
+   \   00000084   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000086   0x6941             LDR      R1,[R0, #+20]
+   \   00000088   0xF021 0x0104      BIC      R1,R1,#0x4
+   \                     ??CAN_ClearITPendingBit_15:
+   \   0000008C   0x6141             STR      R1,[R0, #+20]
+    871                break;
+   \   0000008E   0x4770             BX       LR
+    872              case CAN_IT_WKU:
+    873                CAN->MSR = CAN_MSR_WKUI;  /* rc_w1*/
+   \                     ??CAN_ClearITPendingBit_10:
+   \   00000090   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000092   0x2108             MOVS     R1,#+8
+   \   00000094   0xE001             B.N      ??CAN_ClearITPendingBit_16
+    874                break;
+    875              case CAN_IT_SLK:
+    876                CAN->MSR = CAN_MSR_SLAKI;  /* rc_w1*/
+   \                     ??CAN_ClearITPendingBit_11:
+   \   00000096   0x....             LDR.N    R0,??DataTable14_9  ;; 0x40006404
+   \   00000098   0x2110             MOVS     R1,#+16
+   \                     ??CAN_ClearITPendingBit_16:
+   \   0000009A   0x6001             STR      R1,[R0, #+0]
+    877                break;
+    878              default :
+    879                break;
+    880            }
+    881          }
+   \   0000009C   0x4770             BX       LR               ;; return
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14:
+   \   00000000   0x40006400         DC32     0x40006400
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14_1:
+   \   00000000   0x40006600         DC32     0x40006600
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14_2:
+   \   00000000   0x40006640         DC32     0x40006640
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14_3:
+   \   00000000   0x40006414         DC32     0x40006414
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14_4:
+   \   00000000   0x40006408         DC32     0x40006408
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14_5:
+   \   00000000   0x40006580         DC32     0x40006580
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14_6:
+   \   00000000   0x4000640C         DC32     0x4000640c
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14_7:
+   \   00000000   0x400065B0         DC32     0x400065b0
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14_8:
+   \   00000000   0x40006418         DC32     0x40006418
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable14_9:
+   \   00000000   0x40006404         DC32     0x40006404
+    882          
+    883          /*******************************************************************************
+    884          * Function Name  : CheckITStatus
+    885          * Description    : Checks whether the CAN interrupt has occurred or not.
+    886          * Input          : CAN_Reg: specifies the CAN interrupt register to check.
+    887          *                  It_Bit: specifies the interrupt source bit to check.
+    888          * Output         : None.
+    889          * Return         : The new state of the CAN Interrupt (SET or RESET).
+    890          *******************************************************************************/
+    891          static ITStatus CheckITStatus(u32 CAN_Reg, u32 It_Bit)
+    892          {
+    893            ITStatus pendingbitstatus = RESET;
+    894          
+    895            if ((CAN_Reg & It_Bit) != (u32)RESET)
+    896            {
+    897              /* CAN_IT is set */
+    898              pendingbitstatus = SET;
+    899            }
+    900            else
+    901            {
+    902              /* CAN_IT is reset */
+    903              pendingbitstatus = RESET;
+    904            }
+    905          
+    906            return pendingbitstatus;
+    907          }
+    908          
+    909          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+   .cstack Function
+   ------- --------
+        0  CAN_CancelTransmit
+        0  CAN_ClearFlag
+        0  CAN_ClearITPendingBit
+        8  CAN_DeInit
+             0 -> RCC_APB1PeriphResetCmd
+             8 -> RCC_APB1PeriphResetCmd
+        0  CAN_FIFORelease
+       12  CAN_FilterInit
+        0  CAN_GetFlagStatus
+        0  CAN_GetITStatus
+        0  CAN_ITConfig
+        0  CAN_Init
+        0  CAN_MessagePending
+        4  CAN_Receive
+        0  CAN_Sleep
+        0  CAN_StructInit
+       12  CAN_Transmit
+        0  CAN_TransmitStatus
+        0  CAN_WakeUp
+
+
+   Section sizes:
+
+   Bytes  Function/Label
+   -----  --------------
+       4  ??DataTable14
+       4  ??DataTable14_1
+       4  ??DataTable14_2
+       4  ??DataTable14_3
+       4  ??DataTable14_4
+       4  ??DataTable14_5
+       4  ??DataTable14_6
+       4  ??DataTable14_7
+       4  ??DataTable14_8
+       4  ??DataTable14_9
+      42  CAN_CancelTransmit
+      12  CAN_ClearFlag
+     158  CAN_ClearITPendingBit
+      26  CAN_DeInit
+      16  CAN_FIFORelease
+     180  CAN_FilterInit
+      16  CAN_GetFlagStatus
+     180  CAN_GetITStatus
+      20  CAN_ITConfig
+     176  CAN_Init
+      26  CAN_MessagePending
+     112  CAN_Receive
+      22  CAN_Sleep
+      32  CAN_StructInit
+     174  CAN_Transmit
+     112  CAN_TransmitStatus
+      22  CAN_WakeUp
+
+ 
+ 1 366 bytes in section .text
+ 
+ 1 366 bytes of CODE memory
+
+Errors: none
+Warnings: none

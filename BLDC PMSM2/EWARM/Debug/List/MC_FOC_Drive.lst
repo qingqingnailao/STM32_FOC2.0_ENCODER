@@ -1,0 +1,586 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V6.40.1.53790/W32 for ARM     24/Feb/2014  19:26:37 #
+# Copyright 1999-2012 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  D:\stm32\BLDC PMSM2\src\MC_FOC_Drive.c                   #
+#    Command line =  "D:\stm32\BLDC PMSM2\src\MC_FOC_Drive.c" -D              #
+#                    VECT_TAB_FLASH -lCN "D:\stm32\BLDC                       #
+#                    PMSM2\EWARM\Debug\List\" --diag_error Pe068,Pe069 -o     #
+#                    "D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\" --debug           #
+#                    --endian=little --cpu=Cortex-M3 --fpu=None               #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 6.4\arm\INC\c\DLib_Config_Normal.h" -I         #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\" -I "D:\stm32\BLDC        #
+#                    PMSM2\EWARM\..\..\STM32F10XFWLIB\inc\" -I                #
+#                    "D:\stm32\BLDC PMSM2\EWARM\..\inc\" -Ohs                 #
+#                    --use_c++_inline --require_prototypes                    #
+#    List file    =  D:\stm32\BLDC PMSM2\EWARM\Debug\List\MC_FOC_Drive.lst    #
+#    Object file  =  D:\stm32\BLDC PMSM2\EWARM\Debug\Obj\MC_FOC_Drive.o       #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+D:\stm32\BLDC PMSM2\src\MC_FOC_Drive.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : MC_FOC_Drive.c
+      3          * Author             : IMS Systems Lab 
+      4          * Date First Issued  : 21/11/07
+      5          * Description        : This file provides all the PMSM FOC drive functions.
+      6          * 
+      7          ********************************************************************************
+      8          * History:
+      9          * 21/11/07 v1.0
+     10          * 29/05/08 v2.0
+     11          * 14/07/08 v2.0.1
+     12          * 28/08/08 v2.0.2
+     13          * 04/09/08 v2.0.3
+     14          ********************************************************************************
+     15          * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+     16          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     17          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     18          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     19          * CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     20          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     21          *
+     22          * THIS SOURCE CODE IS PROTECTED BY A LICENSE.
+     23          * FOR MORE INFORMATION PLEASE CAREFULLY READ THE LICENSE AGREEMENT FILE LOCATED
+     24          * IN THE ROOT DIRECTORY OF THIS FIRMWARE PACKAGE.
+     25          *******************************************************************************/
+     26          
+     27          /* Includes ------------------------------------------------------------------*/
+     28          #include "stm32f10x_lib.h"
+     29          #include "stm32f10x_MClib.h"
+     30          #include "MC_Globals.h"
+     31          #include "MC_const.h"
+     32          #include "MC_FOC_Drive.h"
+     33          #include "MC_PMSM_motor_param.h"
+     34          
+     35          /* Private typedef -----------------------------------------------------------*/
+     36          /* Private define ------------------------------------------------------------*/
+     37          #define FW_KDDIV        1
+     38          #define FW_KD_GAIN      0
+     39          #define FW_D_TERM_INIT  0
+     40          #define VOLTAGE_SAMPLING_BUFFER 128
+     41          /* Private macro -------------------------------------------------------------*/
+     42          #define SATURATION_TO_S16(a)    if (a > S16_MAX)              \
+     43                                          {                             \
+     44                                            a = S16_MAX;                \
+     45                                          }                             \
+     46                                          else if (a < -S16_MAX)        \
+     47                                          {                             \
+     48                                            a = -S16_MAX;               \
+     49                                          }                             \
+     50          /* Private functions ---------------------------------------------------------*/
+     51          /* Private variable ----------------------------------------------------------*/
+
+   \                                 In section .bss, align 4
+     52          static volatile Curr_Components Stat_Curr_q_d_ref;
+   \                     Stat_Curr_q_d_ref:
+   \   00000000                      DS8 4
+
+   \                                 In section .bss, align 4
+     53          static Curr_Components Stat_Curr_q_d_ref_ref;
+   \                     Stat_Curr_q_d_ref_ref:
+   \   00000000                      DS8 4
+     54          
+     55          #ifdef FEED_FORWARD_CURRENT_REGULATION
+     56          static Volt_Components Stat_Volt_q_d_3;
+     57          static Volt_Components Stat_Volt_q_d_2;
+     58          #endif
+     59          
+     60          #ifdef FLUX_WEAKENING
+     61          static Volt_Components Stat_Volt_q_d_1;
+     62          s16 hFW_V_Ref = FW_VOLTAGE_REF;
+     63          s16 hFW_P_Gain = FW_KP_GAIN;
+     64          s16 hFW_I_Gain = FW_KI_GAIN;
+     65          s16 hVMagn = 0;
+     66          #endif
+     67          
+     68          /*******************************************************************************
+     69          * Function Name : FOC_Init
+     70          * Description   : The purpose of this function is to initialize to proper values
+     71          *                 all the variables related to the field-oriented control
+     72          *                 algorithm. To be called once prior to every motor startup.
+     73          * Input         : None.
+     74          * Output        : None.
+     75          * Return        : None.
+     76          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+     77          void FOC_Init (void)
+     78          {
+     79          #ifdef FLUX_WEAKENING  
+     80            FOC_FluxRegulatorInterface_Init();//初始化PID值
+     81            
+     82            Stat_Volt_q_d_1.qV_Component1 = 0;
+     83            Stat_Volt_q_d_1.qV_Component2 = 0;
+     84          
+     85            hVMagn = 0;
+     86          #endif
+     87          
+     88          #ifdef IPMSM_MTPA
+     89            FOC_MTPAInterface_Init();
+     90          #endif  
+     91            
+     92          #ifdef FEED_FORWARD_CURRENT_REGULATION  
+     93            Stat_Volt_q_d_3.qV_Component1 = 0;
+     94            Stat_Volt_q_d_3.qV_Component2 = 0; 
+     95            Stat_Volt_q_d_2.qV_Component1 = 0;
+     96            Stat_Volt_q_d_2.qV_Component2 = 0;
+     97            FOC_FF_CurrReg_Init(CONSTANT1_Q,CONSTANT1_D,CONSTANT2);  
+     98          #endif
+     99            
+    100            Stat_Curr_q_d_ref_ref.qI_Component1 = 0;
+   \                     FOC_Init:
+   \   00000000   0x....             LDR.N    R0,??DataTable3
+   \   00000002   0x2100             MOVS     R1,#+0
+   \   00000004   0x6001             STR      R1,[R0, #+0]
+    101            Stat_Curr_q_d_ref_ref.qI_Component2 = 0;  
+    102            
+    103            Stat_Curr_q_d_ref.qI_Component1 = 0;
+   \   00000006   0x....             LDR.N    R0,??DataTable3_1
+   \   00000008   0x8001             STRH     R1,[R0, #+0]
+    104            Stat_Curr_q_d_ref.qI_Component2 = 0;
+   \   0000000A   0x8041             STRH     R1,[R0, #+2]
+    105          }
+   \   0000000C   0x4770             BX       LR               ;; return
+    106          
+    107          /*******************************************************************************
+    108          * Function Name : FOC_Model
+    109          * Description   : The purpose of this function is to perform PMSM torque and 
+    110          *                 flux regulation, implementing the FOC vector algorithm.
+    111          * Input         : None.
+    112          * Output        : None.
+    113          * Return        : None.
+    114          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    115          void FOC_Model(void)
+    116          {
+   \                     FOC_Model:
+   \   00000000   0xB5F0             PUSH     {R4-R7,LR}
+   \   00000002   0xB083             SUB      SP,SP,#+12
+    117          #ifdef FEED_FORWARD_CURRENT_REGULATION  
+    118            Volt_Components Stat_Volt_q_d_4;
+    119            s32 wtemp;
+    120          #endif
+    121            
+    122          #if defined HALL_SENSORS
+    123            //Integrate Speed for rotor angle update
+    124            HALL_IncElectricalAngle();
+    125          #endif    
+    126            
+    127            /**********STARTS THE VECTOR CONTROL ************************/  
+    128           
+    129            Stat_Curr_a_b = GET_PHASE_CURRENTS();//取得当前电流ia,ib
+   \   00000004   0x.... 0x....      BL       SVPWM_3ShuntGetPhaseCurrentValues
+   \   00000008   0x....             LDR.N    R1,??DataTable3_2
+   \   0000000A   0x6008             STR      R0,[R1, #+0]
+   \   0000000C   0x9000             STR      R0,[SP, #+0]
+    130            
+    131            Stat_Curr_alfa_beta = Clarke(Stat_Curr_a_b);//clarke 变换成i_alfa,i_beta
+   \   0000000E   0x.... 0x....      BL       Clarke
+   \   00000012   0x....             LDR.N    R6,??DataTable3_3
+   \   00000014   0x6030             STR      R0,[R6, #+0]
+    132            
+    133            Stat_Curr_q_d = Park(Stat_Curr_alfa_beta,GET_ELECTRICAL_ANGLE);  
+   \   00000016   0x.... 0x....      BL       STO_Get_Electrical_Angle
+   \   0000001A   0x4601             MOV      R1,R0
+   \   0000001C   0x6830             LDR      R0,[R6, #+0]
+   \   0000001E   0x9000             STR      R0,[SP, #+0]
+   \   00000020   0x.... 0x....      BL       Park
+   \   00000024   0x....             LDR.N    R5,??DataTable3_4
+   \   00000026   0x6028             STR      R0,[R5, #+0]
+    134          
+    135          #ifdef NO_SPEED_SENSORS  
+    136            STO_Calc_Rotor_Angle(Stat_Volt_alfa_beta,Stat_Curr_alfa_beta,MCL_Get_BusVolt());
+   \   00000028   0x.... 0x....      BL       MCL_Get_BusVolt
+   \   0000002C   0x4602             MOV      R2,R0
+   \   0000002E   0x....             LDR.N    R4,??DataTable3_5
+   \   00000030   0x6830             LDR      R0,[R6, #+0]
+   \   00000032   0x9000             STR      R0,[SP, #+0]
+   \   00000034   0x6820             LDR      R0,[R4, #+0]
+   \   00000036   0x9001             STR      R0,[SP, #+4]
+   \   00000038   0x9900             LDR      R1,[SP, #+0]
+   \   0000003A   0x.... 0x....      BL       STO_Calc_Rotor_Angle
+    137          #endif
+    138          
+    139          #ifdef FEED_FORWARD_CURRENT_REGULATION   
+    140            /*loads the Torque Regulator output reference voltage Vqs*/   
+    141            Stat_Volt_q_d_4.qV_Component1 = PID_Regulator(Stat_Curr_q_d_ref_ref.qI_Component1,
+    142                                   Stat_Curr_q_d.qI_Component1,&PID_Torque_InitStructure);                                                   
+    143          
+    144            
+    145            /*loads the Flux Regulator output reference voltage Vds*/
+    146            Stat_Volt_q_d_4.qV_Component2 = PID_Regulator(Stat_Curr_q_d_ref_ref.qI_Component2,
+    147                                   Stat_Curr_q_d.qI_Component2,&PID_Flux_InitStructure);  
+    148          
+    149           
+    150            wtemp = (s32)(Stat_Volt_q_d_4.qV_Component1 + Stat_Volt_q_d_3.qV_Component1);
+    151            
+    152            SATURATION_TO_S16(wtemp);
+    153            
+    154            Stat_Volt_q_d.qV_Component1 = (s16)wtemp;  
+    155          
+    156            wtemp = (s32)(Stat_Volt_q_d_4.qV_Component2 + Stat_Volt_q_d_3.qV_Component2);
+    157            
+    158            SATURATION_TO_S16(wtemp);
+    159            
+    160            Stat_Volt_q_d.qV_Component2 = (s16)wtemp;
+    161            
+    162          #else
+    163            /*loads the Torque Regulator output reference voltage Vqs*/   
+    164            Stat_Volt_q_d.qV_Component1 = PID_Regulator(Stat_Curr_q_d_ref_ref.qI_Component1, 
+    165                                  Stat_Curr_q_d.qI_Component1, &PID_Torque_InitStructure);
+   \   0000003E   0x....             LDR.N    R6,??DataTable3_6
+   \   00000040   0x....             LDR.N    R7,??DataTable3
+   \   00000042   0x....             LDR.N    R2,??DataTable3_7
+   \   00000044   0xF9B5 0x1000      LDRSH    R1,[R5, #+0]
+   \   00000048   0xF9B7 0x0000      LDRSH    R0,[R7, #+0]
+   \   0000004C   0x.... 0x....      BL       PID_Regulator
+   \   00000050   0x8030             STRH     R0,[R6, #+0]
+    166          
+    167            
+    168            /*loads the Flux Regulator output reference voltage Vds*/
+    169            Stat_Volt_q_d.qV_Component2 = PID_Regulator(Stat_Curr_q_d_ref_ref.qI_Component2, 
+    170                                    Stat_Curr_q_d.qI_Component2, &PID_Flux_InitStructure);  
+   \   00000052   0x....             LDR.N    R2,??DataTable3_8
+   \   00000054   0xF9B5 0x1002      LDRSH    R1,[R5, #+2]
+   \   00000058   0xF9B7 0x0002      LDRSH    R0,[R7, #+2]
+   \   0000005C   0x.... 0x....      BL       PID_Regulator
+   \   00000060   0x8070             STRH     R0,[R6, #+2]
+    171          #endif
+    172            
+    173            //circle limitation
+    174            RevPark_Circle_Limitation();//限制Stat_Volt_q_d 的值
+   \   00000062   0x.... 0x....      BL       RevPark_Circle_Limitation
+   \   00000066   0x6830             LDR      R0,[R6, #+0]
+   \   00000068   0x9000             STR      R0,[SP, #+0]
+    175           
+    176            /*Performs the Reverse Park transformation,
+    177            i.e transforms stator voltages Vqs and Vds into Valpha and Vbeta on a 
+    178            stationary reference frame*/
+    179          
+    180            Stat_Volt_alfa_beta = Rev_Park(Stat_Volt_q_d);
+   \   0000006A   0x.... 0x....      BL       Rev_Park
+   \   0000006E   0x6020             STR      R0,[R4, #+0]
+   \   00000070   0x9000             STR      R0,[SP, #+0]
+    181          
+    182            /*Valpha and Vbeta finally drive the power stage*/ 
+    183            CALC_SVPWM(Stat_Volt_alfa_beta);
+   \   00000072   0x.... 0x....      BL       SVPWM_3ShuntCalcDutyCycles
+    184            
+    185          #ifdef FEED_FORWARD_CURRENT_REGULATION  
+    186            Stat_Volt_q_d_2.qV_Component1 = (s16)((Stat_Volt_q_d_2.qV_Component1*
+    187                                            (VOLTAGE_SAMPLING_BUFFER-1)+
+    188                                            Stat_Volt_q_d_4.qV_Component1)/
+    189                                            VOLTAGE_SAMPLING_BUFFER);
+    190            Stat_Volt_q_d_2.qV_Component2 = (s16)((Stat_Volt_q_d_2.qV_Component2*
+    191                                            (VOLTAGE_SAMPLING_BUFFER-1)+
+    192                                            Stat_Volt_q_d_4.qV_Component2)/
+    193                                            VOLTAGE_SAMPLING_BUFFER);
+    194          #endif 
+    195          #ifdef FLUX_WEAKENING
+    196            
+    197            Stat_Volt_q_d_1.qV_Component1 = (s16)((Stat_Volt_q_d_1.qV_Component1*
+    198                                            (VOLTAGE_SAMPLING_BUFFER-1)+
+    199                                            Stat_Volt_q_d.qV_Component1)/
+    200                                            VOLTAGE_SAMPLING_BUFFER);
+    201            Stat_Volt_q_d_1.qV_Component2 = (s16)((Stat_Volt_q_d_1.qV_Component2*
+    202                                            (VOLTAGE_SAMPLING_BUFFER-1)+
+    203                                            Stat_Volt_q_d.qV_Component2)/
+    204                                            VOLTAGE_SAMPLING_BUFFER);
+    205          #endif  
+    206          }
+   \   00000076   0xB003             ADD      SP,SP,#+12
+   \   00000078   0xBDF0             POP      {R4-R7,PC}       ;; return
+    207          
+    208          /*******************************************************************************
+    209          * Function Name   : FOC_CalcFluxTorqueRef
+    210          * Description     : This function provides current components Iqs* and Ids* to be
+    211          *                   used as reference values (by the FOC_Model function) when in
+    212          *                   speed control mode
+    213          * Input           : None.
+    214          * Output          : None.
+    215          * Return          : None.
+    216          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    217          void FOC_CalcFluxTorqueRef(void)
+    218          {
+   \                     FOC_CalcFluxTorqueRef:
+   \   00000000   0xB510             PUSH     {R4,LR}
+    219            Stat_Curr_q_d_ref.qI_Component1 = PID_Regulator(hSpeed_Reference,
+    220                                              GET_SPEED_0_1HZ,&PID_Speed_InitStructure);
+   \   00000002   0x.... 0x....      BL       STO_Get_Speed_Hz
+   \   00000006   0x....             LDR.N    R4,??DataTable3_1
+   \   00000008   0x....             LDR.N    R2,??DataTable3_9
+   \   0000000A   0x4601             MOV      R1,R0
+   \   0000000C   0x....             LDR.N    R0,??DataTable3_10
+   \   0000000E   0xF9B0 0x0000      LDRSH    R0,[R0, #+0]
+   \   00000012   0x.... 0x....      BL       PID_Regulator
+   \   00000016   0x8020             STRH     R0,[R4, #+0]
+    221          
+    222          #ifdef IPMSM_MTPA  
+    223            Stat_Curr_q_d_ref.qI_Component2 = FOC_MTPA(Stat_Curr_q_d_ref.qI_Component1);  
+    224          #else
+    225            Stat_Curr_q_d_ref.qI_Component2 = 0;
+   \   00000018   0x2000             MOVS     R0,#+0
+   \   0000001A   0x8060             STRH     R0,[R4, #+2]
+    226          #endif
+    227          
+    228          #ifdef FLUX_WEAKENING
+    229            {
+    230              s16 hVoltageLimit_Reference;
+    231              
+    232              Curr_Components Stat_Curr_q_d_temp;
+    233              
+    234              hVoltageLimit_Reference = (s16)((hFW_V_Ref*MAX_MODULE)/1000);
+    235              
+    236              Stat_Curr_q_d_temp = FOC_FluxRegulator(Stat_Curr_q_d_ref,Stat_Volt_q_d_1,
+    237                                                     hVoltageLimit_Reference);
+    238              
+    239              PID_Speed_InitStructure.wLower_Limit_Integral =
+    240                                      -((s32)(Stat_Curr_q_d_temp.qI_Component1)*SP_KIDIV);
+    241              PID_Speed_InitStructure.wUpper_Limit_Integral = 
+    242                                       ((s32)(Stat_Curr_q_d_temp.qI_Component1)*SP_KIDIV);
+    243              
+    244              if (Stat_Curr_q_d_ref.qI_Component1 > Stat_Curr_q_d_temp.qI_Component1)
+    245              {
+    246                Stat_Curr_q_d_ref_ref.qI_Component1 = Stat_Curr_q_d_temp.qI_Component1;
+    247              }
+    248              else if (Stat_Curr_q_d_ref.qI_Component1 < -Stat_Curr_q_d_temp.qI_Component1)
+    249              {
+    250                Stat_Curr_q_d_ref_ref.qI_Component1 = -Stat_Curr_q_d_temp.qI_Component1;
+    251              }
+    252              else
+    253              {
+    254                Stat_Curr_q_d_ref_ref.qI_Component1 = Stat_Curr_q_d_ref.qI_Component1;
+    255              }
+    256              
+    257              Stat_Curr_q_d_ref_ref.qI_Component2 = Stat_Curr_q_d_temp.qI_Component2;
+    258            }
+    259            hVMagn = FOC_FluxRegulator_Update(hFW_P_Gain, hFW_I_Gain);
+    260              
+    261          #else
+    262            Stat_Curr_q_d_ref_ref = Stat_Curr_q_d_ref;
+   \   0000001C   0x6820             LDR      R0,[R4, #+0]
+   \   0000001E   0x....             LDR.N    R1,??DataTable3
+   \   00000020   0x6008             STR      R0,[R1, #+0]
+    263          #endif
+    264          
+    265          #ifdef FEED_FORWARD_CURRENT_REGULATION
+    266            Stat_Volt_q_d_3 = FOC_FF_CurrReg(Stat_Curr_q_d_ref_ref,Stat_Volt_q_d_2,
+    267                                                  GET_SPEED_DPP,MCL_Get_BusVolt());
+    268          #endif
+    269            
+    270            hTorque_Reference = Stat_Curr_q_d_ref_ref.qI_Component1;
+   \   00000022   0x....             LDR.N    R0,??DataTable3_11
+   \   00000024   0x880A             LDRH     R2,[R1, #+0]
+   \   00000026   0x8002             STRH     R2,[R0, #+0]
+    271            hFlux_Reference = Stat_Curr_q_d_ref_ref.qI_Component2;  
+   \   00000028   0x8848             LDRH     R0,[R1, #+2]
+   \   0000002A   0x....             LDR.N    R1,??DataTable3_12
+   \   0000002C   0x8008             STRH     R0,[R1, #+0]
+    272          }
+   \   0000002E   0xBD10             POP      {R4,PC}          ;; return
+    273          
+    274          /*******************************************************************************
+    275          * Function Name   : FOC_TorqueCntrl
+    276          * Description     : This function provides current components Iqs* and Ids* to be
+    277          *                   used as reference values (by the FOC_Model function) when in
+    278          *                   Torque control mode
+    279          * Input           : None.
+    280          * Output          : None.
+    281          * Return          : None.
+    282          *******************************************************************************/
+
+   \                                 In section .text, align 2, keep-with-next
+    283          void FOC_TorqueCtrl(void)
+    284          {
+    285            Stat_Curr_q_d_ref_ref.qI_Component1 = hTorque_Reference;
+   \                     FOC_TorqueCtrl:
+   \   00000000   0x....             LDR.N    R0,??DataTable3
+   \   00000002   0x....             LDR.N    R1,??DataTable3_11
+   \   00000004   0x8809             LDRH     R1,[R1, #+0]
+   \   00000006   0x8001             STRH     R1,[R0, #+0]
+    286            Stat_Curr_q_d_ref_ref.qI_Component2 = hFlux_Reference;
+   \   00000008   0x....             LDR.N    R1,??DataTable3_12
+   \   0000000A   0x8809             LDRH     R1,[R1, #+0]
+   \   0000000C   0x8041             STRH     R1,[R0, #+2]
+    287          #ifdef FEED_FORWARD_CURRENT_REGULATION
+    288            Stat_Volt_q_d_3 = FOC_FF_CurrReg(Stat_Curr_q_d_ref_ref,Stat_Volt_q_d_2,
+    289                                                    GET_SPEED_DPP,MCL_Get_BusVolt());
+    290          #endif  
+    291          }
+   \   0000000E   0x4770             BX       LR               ;; return
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3:
+   \   00000000   0x........         DC32     Stat_Curr_q_d_ref_ref
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_1:
+   \   00000000   0x........         DC32     Stat_Curr_q_d_ref
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_2:
+   \   00000000   0x........         DC32     Stat_Curr_a_b
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_3:
+   \   00000000   0x........         DC32     Stat_Curr_alfa_beta
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_4:
+   \   00000000   0x........         DC32     Stat_Curr_q_d
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_5:
+   \   00000000   0x........         DC32     Stat_Volt_alfa_beta
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_6:
+   \   00000000   0x........         DC32     Stat_Volt_q_d
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_7:
+   \   00000000   0x........         DC32     PID_Torque_InitStructure
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_8:
+   \   00000000   0x........         DC32     PID_Flux_InitStructure
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_9:
+   \   00000000   0x........         DC32     PID_Speed_InitStructure
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_10:
+   \   00000000   0x........         DC32     hSpeed_Reference
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_11:
+   \   00000000   0x........         DC32     hTorque_Reference
+
+   \                                 In section .text, align 4, keep-with-next
+   \                     ??DataTable3_12:
+   \   00000000   0x........         DC32     hFlux_Reference
+    292          
+    293          /*******************************************************************************
+    294          * Function Name   : FOC_MTPAInterface_Init
+    295          * Description     : According to the motor parameters written in the MTPA
+    296          *                   section of MC_PMSM_motor_param.h, it initializes all the
+    297          *                   variables related to the MTPA trajectory generator to proper
+    298          *                   values (FOC_MTPA function). It has to be called at least
+    299          *                   once before the first motor startup.
+    300          * Input           : None.
+    301          * Output          : None.
+    302          * Return          : None.
+    303          *******************************************************************************/
+    304          #ifdef IPMSM_MTPA
+    305          void FOC_MTPAInterface_Init(void)
+    306          {
+    307            MTPA_Const MTPA_InitStructure = {SEGDIV,ANGC,OFST};
+    308            FOC_MTPA_Init(MTPA_InitStructure, ID_DEMAG);
+    309          }
+    310          #endif
+    311          
+    312          /*******************************************************************************
+    313          * Function Name   : FOC_FluxRegulatorInterface_Init
+    314          * Description     : According to the motor parameters written in the
+    315          *                   fluxweakening section of MC_PMSM_motor_param.h,
+    316          *                   it initializes all the variables related to flux-weakening
+    317          *                   operations to proper values (FOC_Flux_Regulator function).
+    318          *                   It has to be called before every motor startup.
+    319          * Input           : None.
+    320          * Output          : None.
+    321          * Return          : None.
+    322          *******************************************************************************/
+    323          #ifdef FLUX_WEAKENING
+    324          void FOC_FluxRegulatorInterface_Init(void)
+    325          {
+    326            PID_Struct_t PI_Stat_Volt_InitStructure;
+    327            
+    328            PI_Stat_Volt_InitStructure.hKp_Gain = hFW_P_Gain;
+    329            PI_Stat_Volt_InitStructure.hKp_Divisor = FW_KPDIV;
+    330            PI_Stat_Volt_InitStructure.hKi_Gain = hFW_I_Gain;
+    331            PI_Stat_Volt_InitStructure.hKi_Divisor = FW_KIDIV; 
+    332            //Lower Limit for Output limitation
+    333            PI_Stat_Volt_InitStructure.hLower_Limit_Output = ID_DEMAG;
+    334            //Upper Limit for Output limitation
+    335            PI_Stat_Volt_InitStructure.hUpper_Limit_Output = 0;
+    336            PI_Stat_Volt_InitStructure.wLower_Limit_Integral = 
+    337                                        PI_Stat_Volt_InitStructure.hLower_Limit_Output *
+    338                                        PI_Stat_Volt_InitStructure.hKi_Divisor;   //Lower Limit for Integral term limitation
+    339            PI_Stat_Volt_InitStructure.wUpper_Limit_Integral = 0;   //Lower Limit for Integral term limitation
+    340            PI_Stat_Volt_InitStructure.wIntegral = 0;
+    341            
+    342            PI_Stat_Volt_InitStructure.hKd_Gain = FW_KD_GAIN;
+    343            PI_Stat_Volt_InitStructure.hKd_Divisor = FW_KDDIV;
+    344            PI_Stat_Volt_InitStructure.wPreviousError = FW_D_TERM_INIT;
+    345            
+    346            FOC_FluxRegulator_Init(&PI_Stat_Volt_InitStructure,NOMINAL_CURRENT);  
+    347          }
+    348          #endif
+    349          
+    350          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+   .cstack Function
+   ------- --------
+        8  FOC_CalcFluxTorqueRef
+              8 -> PID_Regulator
+              8 -> STO_Get_Speed_Hz
+        0  FOC_Init
+       32  FOC_Model
+             32 -> Clarke
+             32 -> MCL_Get_BusVolt
+             32 -> PID_Regulator
+             32 -> Park
+             32 -> RevPark_Circle_Limitation
+             32 -> Rev_Park
+             32 -> STO_Calc_Rotor_Angle
+             32 -> STO_Get_Electrical_Angle
+             32 -> SVPWM_3ShuntCalcDutyCycles
+             32 -> SVPWM_3ShuntGetPhaseCurrentValues
+        0  FOC_TorqueCtrl
+
+
+   Section sizes:
+
+   Bytes  Function/Label
+   -----  --------------
+       4  ??DataTable3
+       4  ??DataTable3_1
+       4  ??DataTable3_10
+       4  ??DataTable3_11
+       4  ??DataTable3_12
+       4  ??DataTable3_2
+       4  ??DataTable3_3
+       4  ??DataTable3_4
+       4  ??DataTable3_5
+       4  ??DataTable3_6
+       4  ??DataTable3_7
+       4  ??DataTable3_8
+       4  ??DataTable3_9
+      48  FOC_CalcFluxTorqueRef
+      14  FOC_Init
+     122  FOC_Model
+      16  FOC_TorqueCtrl
+       4  Stat_Curr_q_d_ref
+       4  Stat_Curr_q_d_ref_ref
+
+ 
+   8 bytes in section .bss
+ 252 bytes in section .text
+ 
+ 252 bytes of CODE memory
+   8 bytes of DATA memory
+
+Errors: none
+Warnings: 3
